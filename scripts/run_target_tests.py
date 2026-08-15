@@ -40,6 +40,7 @@ def run_once(out_dir: Path, variant: str = "toolz") -> int:
             str(py), "-m", "pytest", "toolz/",
             f"--junitxml={out_dir / 'junit.xml'}",
             "-q",
+            "--color=no",  # otherwise pytest's ANSI escapes end up inside stored failure messages
             "--cov=toolz",
             "--cov-context=test",
             "--cov-report=",

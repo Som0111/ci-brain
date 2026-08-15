@@ -173,6 +173,57 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
+### Phase 5 — Failure Clustering (clustering complete; LLM summary step pending API key)
+
+**Seeded bugs.** 4 real, deterministic logic bugs (not flaky - always reproduce) in a
+separate clone (`toolz-bug-seed`, applied via `seeds/bugs/*.py` same as Phase 3's pattern):
+`dicttoolz.merge()` drops the last dict (off-by-one), `itertoolz.unique()` never marks items
+seen (duplicates leak through), `itertoolz.first()` skips the real first element, and
+`functoolz.identity()` returns `None`. Two bugs deliberately share one file (`itertoolz.py`)
+as a stress test for whether clustering can separate co-located root causes, not just
+"which file changed." Result: 25 failures per run from 4 bugs.
+
+**Why message-text clustering was rejected, with measurements.** Tried first, and calibrated
+empirically rather than assumed: `difflib` similarity between two failures of the *same* bug
+(`merge()`, different dict shapes) scored 0.41-0.74, while two failures from *different* bugs
+scored as high as 0.75 - text similarity doesn't reliably separate same-bug from different-bug.
+An exact-match normalized-signature approach (strip digits/hex/addresses) fared even worse:
+25 failures fragmented into 20 near-singleton clusters.
+
+**What actually works: reusing Phase 4's dependency graph.** `app/analysis/clustering.py`
+clusters by (a) which source files the failing test is known to cover, per the *clean
+baseline's* coverage graph (not the buggy run's own coverage, which can differ under a bug -
+see `baseline_repo_id` param below), and (b) the innermost function name pytest's assertion
+rewriting captures when present (`where 1 = first(...)`), which is a much stronger signal when
+available. Verified live: 75 failures (3 replayed runs x 25) -> 12 clusters. The two largest
+(18 and 6 failures) cleanly and exclusively capture the `merge` and `identity` bugs.
+
+**Known, tested limitation** (documented rather than chased further): failures lacking a
+"where" hint fall back to file-level grouping alone, so `unique()` and `first()` failures that
+don't happen to go through a captured call expression land in one shared `itertoolz.py`
+cluster instead of two. Also, tests whose coverage footprint differs by even one incidental
+file (e.g. `test_factory` also touches `utils.py`) form their own smaller cluster instead of
+joining the main one for the same bug - real fragmentation, not a false root cause, but worth
+knowing before quoting a specific cluster count.
+
+**Endpoint**: `GET /repos/{id}/failure-clusters` (optional `?run_id=` and
+`?baseline_repo_id=`). `baseline_repo_id` matters for any seeded/variant repo: point it at the
+clean baseline (`toolz`, repo 1) rather than letting the buggy repo use its own coverage as
+the reference for "what does this test normally touch."
+
+**Also fixed**: the replay harness wasn't passing `--color=no` to pytest, so ANSI escape
+codes were leaking into stored failure messages (including the `message` attribute, not just
+the traceback text) - would have broken both clustering and any future LLM prompt built from
+that text. Fixed in `scripts/run_target_tests.py`; not backfilled into already-stored Phase 3
+data since that data was never used for message content.
+
+**Remaining for this phase**: the LLM summarizer (one call per cluster -> plain-English
+root-cause hypothesis) needs an Anthropic API key, which isn't configured yet - paused here
+rather than blocking the rest of the phase on it. Also still open: tests for the clustering
+logic against the known seeded bugs beyond what's already in `tests/test_clustering.py`
+(current tests use synthetic fixtures; could add a fixture-driven test replaying the real
+25-failure/12-cluster shape as a regression guard).
+
 ### Phase 4 — Test Impact Analysis (complete; benchmark framing reviewed and approved)
 
 > Soumya reviewed and approved quoting the **range** (9.5-58.2% wall-clock reduction across
