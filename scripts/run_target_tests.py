@@ -1,5 +1,5 @@
 """
-Run the target repo's (toolz) test suite once, capturing:
+Run one variant of the target repo's test suite once, capturing:
   - JUnit XML (pass/fail/duration per test)
   - coverage.py data with per-test contexts (which test executed which line)
 
@@ -13,20 +13,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-TARGET_DIR = Path(__file__).resolve().parent.parent / "target_repos" / "toolz"
+from scripts.clone_target import target_dir
 
 
-def target_python():
-    venv_dir = TARGET_DIR / ".venv"
+def target_python(variant: str = "toolz") -> Path:
+    venv_dir = target_dir(variant) / ".venv"
     return venv_dir / "Scripts" / "python.exe" if sys.platform == "win32" else venv_dir / "bin" / "python"
 
 
-def run_once(out_dir: Path) -> int:
+def run_once(out_dir: Path, variant: str = "toolz") -> int:
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    py = target_python()
+    tdir = target_dir(variant)
+    py = target_python(variant)
 
-    coverage_data_file = TARGET_DIR / ".coverage"
+    coverage_data_file = tdir / ".coverage"
     coverage_data_file.unlink(missing_ok=True)
 
     # coverage.py's default "sysmon" tracer (Python 3.12+) doesn't fully support
@@ -43,13 +44,13 @@ def run_once(out_dir: Path) -> int:
             "--cov-context=test",
             "--cov-report=",
         ],
-        cwd=TARGET_DIR,
+        cwd=tdir,
         env=env,
     )
 
     subprocess.run(
         [str(py), "-m", "coverage", "json", "--show-contexts", "-o", str(out_dir / "coverage.json")],
-        cwd=TARGET_DIR,
+        cwd=tdir,
         env=env,
         check=True,
     )
@@ -63,8 +64,9 @@ def run_once(out_dir: Path) -> int:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", default=str(Path(__file__).resolve().parent.parent / "replay_data" / "run"))
+    parser.add_argument("--variant", default="toolz")
     args = parser.parse_args()
-    run_once(Path(args.out_dir))
+    run_once(Path(args.out_dir), args.variant)
 
 
 if __name__ == "__main__":

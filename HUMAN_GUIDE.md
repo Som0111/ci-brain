@@ -80,6 +80,18 @@ commit again and reuse the existing venv. Artifacts land in `replay_data/run_N/`
 Spot-check: `curl http://localhost:8000/runs/<id>` and compare `results` count / status
 breakdown against the raw `replay_data/run_N/junit.xml`.
 
+## How to set up a seeded variant (flaky tests, later synthetic bugs)
+
+Seed source files live in `seeds/` (tracked in git) - the clone under `target_repos/` is
+gitignored and disposable, so seeding must be re-applied as its own explicit step, not hand-edited
+directly in the clone:
+
+```
+.venv\Scripts\python.exe scripts\clone_target.py --variant toolz-flaky-seed
+.venv\Scripts\python.exe -m scripts.apply_seed --variant toolz-flaky-seed --seed-file flaky/test_seeded_flaky.py --dest toolz/tests/test_seeded_flaky.py
+.venv\Scripts\python.exe -m scripts.replay_harness -n 20 --variant toolz-flaky-seed --repo-name toolz-flaky-seed --out-prefix flaky_run
+```
+
 ## How to test it
 
 ```
@@ -96,8 +108,8 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
 | Apply migrations | `.venv\Scripts\python.exe -m alembic upgrade head` |
 | New migration (once autogenerate is viable, i.e. DB is up) | `.venv\Scripts\python.exe -m alembic revision --autogenerate -m "message"` |
 | Run the API | `.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000` |
-| Set up/refresh target repo | `.venv\Scripts\python.exe scripts\clone_target.py` |
-| Replay N runs into the API | `.venv\Scripts\python.exe -m scripts.replay_harness -n 5` |
+| Set up/refresh target repo | `.venv\Scripts\python.exe scripts\clone_target.py --variant <name>` |
+| Replay N runs into the API | `.venv\Scripts\python.exe -m scripts.replay_harness -n 5 --variant <name> --repo-name <name>` |
 
 ## Known limitations / gotchas
 
@@ -117,6 +129,12 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
   `scripts/run_target_tests.py`. If a *different* target repo is ever swapped in and contexts
   silently come back empty, check this first.
 - No auth on any endpoint — fine for a local/portfolio project, not fine for anything public.
+- **Seeded-flaky variance is real but skewed, not 50/50**: the 4 synthetic flaky tests in
+  `target_repos/toolz-flaky-seed/toolz/tests/test_seeded_flaky.py` have empirical fail rates
+  from 40% to 90% (measured across 20 runs), not an even split — real flaky tests usually
+  aren't 50/50 either. `test_flaky_hash_randomization_order` in particular only has a ~1-in-6
+  chance to pass by construction (3-item set iteration order), so it needs a reasonably large
+  N to show both outcomes; 20 was enough, a much smaller N might not be.
 - Ingestion endpoint currently identifies a run only by `repo_id` path param; there's no
   idempotency/dedup if the same JUnit file is POSTed twice (it'll create a second `TestRun`).
 
@@ -143,6 +161,25 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
 - Verified: ran 3 replay cycles against the live API; each stored run's result count (186) and
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
+
+### Phase 3 — Flakiness Detection (in progress: variance computation done, threshold pending)
+- `clone_target.py`/`run_target_tests.py`/`replay_harness.py` generalized to take a `--variant`
+  (which `target_repos/<name>` clone to use) and `--repo-name` (which CI Brain DB repo to store
+  under), so seeded variants never mix into the clean `toolz` baseline's run history.
+- 4 synthetic flaky tests seeded into a separate clone (`toolz-flaky-seed`), each tied to
+  `random`'s per-process seed rather than raw OS timing jitter, so they're reliably
+  non-deterministic across independent `pytest` process runs (see gotcha above).
+- Replayed 20 runs of the seeded variant into its own DB repo (`toolz-flaky-seed`, repo id 2).
+- `app/analysis/flakiness.py` (`compute_variance_stats`) — tallies pass/fail/skip counts per
+  test across stored runs for a repo (optionally filtered to one commit). Deliberately does
+  **not** classify anything as "flaky" yet — that threshold is a separate design decision
+  (next step, done on Fable per the model usage guide).
+- Verified against real data: of 190 tracked tests, exactly the 4 seeded ones show mixed
+  pass/fail (fail rates 40-90%); all 186 real `toolz` tests are perfectly stable, zero false
+  positives.
+- Remaining for this phase: the variance threshold + quarantine classification itself, a report
+  generator, and tests for the classification logic (variance computation already has its own
+  tests in `tests/test_flakiness.py`).
 
 ## What you should understand, edit, or review
 
