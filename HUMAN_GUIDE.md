@@ -441,7 +441,7 @@ machine — not by discarding the inconvenient run.
   `--collect-only` overhead per arm. Flagging it because it's exactly the kind of error that
   produces a great-looking, wrong number.
 
-### Phase 3 — Flakiness Detection (complete, pending your sanity check of the threshold)
+### Phase 3 — Flakiness Detection (complete; threshold approved)
 - Threshold decision (`app/analysis/classify.py`): a test is **flaky** if it produced both a
   pass and a fail on identical code — *not* a fail-rate percentage band, because a 5% fail
   rate is still flaky while a 100% fail rate is just a broken test (reported separately as
