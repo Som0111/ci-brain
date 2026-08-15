@@ -92,6 +92,17 @@ directly in the clone:
 .venv\Scripts\python.exe -m scripts.replay_harness -n 20 --variant toolz-flaky-seed --repo-name toolz-flaky-seed --out-prefix flaky_run
 ```
 
+## How to run the impact analysis + benchmark (Phase 4)
+
+```
+.venv\Scripts\python.exe -m scripts.verify_selection      # safety check: does selection ever drop a real failure?
+.venv\Scripts\python.exe -m scripts.benchmark_impact --reps 5
+```
+
+`verify_selection.py` is the one that matters for trusting any number: it breaks a source file,
+runs the **full** suite, and asserts every test that actually failed was in the selected subset.
+It restores the file afterwards (both by rewriting the original text and `git checkout`).
+
 ## How to test it
 
 ```
@@ -161,6 +172,67 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
 - Verified: ran 3 replay cycles against the live API; each stored run's result count (186) and
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
+
+### Phase 4 — Test Impact Analysis (complete, pending your review of the benchmark framing)
+
+**What it does.** `app/analysis/impact.py` builds a source-file -> tests map from the stored
+per-test coverage contexts (unioned across all runs of a repo), then selects the tests to run
+for a set of changed files. `POST /repos/{id}/impact` and `GET /repos/{id}/impact/graph`
+expose it.
+
+**The graph is not a traversal.** Worth being precise, because it's an easy thing to overclaim
+in an interview: coverage observes real execution, so if a test calls `foo()` which calls
+`bar()` in another module, coverage already records that test against lines in *both* files.
+The transitive closure of runtime dependencies is therefore already flattened into a one-hop
+lookup. That's why it's accurate for code that ran — and blind to code that didn't.
+
+**Conservative fallbacks (these are why the savings aren't larger, and they're deliberate).**
+Selection falls back to the full suite rather than guess when: a config/infra file changed
+(`conftest.py`, `pytest.ini`, `requirements.txt`, ...); a changed source file has no coverage
+data at all (it could still break every importer); or a changed test file has no recorded
+tests (most likely brand new).
+
+**Safety verification.** `scripts/verify_selection.py` breaks a source file, runs the full
+suite, and checks every actually-failing test was in the selection. All 3 scenarios pass with
+**zero missed failures** (dicttoolz: 13 failures all within 52 selected; itertoolz: 8 within
+58; functoolz: 4 within 79).
+
+**Benchmark results** (median of 9 interleaved reps, no coverage instrumentation, same
+checkout, quiet machine, `replay_data/benchmark.json`). Full suite 2.12s ±0.04s, of which
+**47% is fixed pytest startup/collection** — an irreducible floor:
+
+| changed file | tests selected | test-count cut | wall-clock cut | execution-time cut |
+|---|---|---|---|---|
+| `toolz/dicttoolz.py` | 52/186 | 72.0% | 42.4% | 90.7% |
+| `toolz/itertoolz.py` | 58/186 | 68.8% | 9.5% | 31.3% |
+| `toolz/functoolz.py` | 79/186 | 57.5% | 23.9% | 66.6% |
+| `toolz/recipes.py` | 2/186 | 98.9% | 58.2% | 99.0% |
+
+**Reproducibility.** Two independent passes agree to within **1.0 percentage point** on every
+scenario (`replay_data/bench_A.json` vs `bench_B.json`); test selection itself is fully
+deterministic. This took two attempts to get right and the failure is worth remembering: the
+first reproducibility check disagreed by **24 percentage points**, because the second pass ran
+in the background while the API server was being restarted and the test suite was running.
+Measuring all reps of one arm and then all reps of the other also let machine drift land
+entirely on one side. Fixed by interleaving the arms round-robin and measuring on an idle
+machine — not by discarding the inconvenient run.
+
+**How to read these honestly** — this is the part that matters for the resume line:
+- **Test-count cut and runtime cut are not the same number and must not be conflated.** Tests
+  aren't uniform in duration. `itertoolz` cuts 69% of tests but only 9% of wall-clock, because
+  the tests it keeps are the slow ones. Quoting the 69% as a runtime saving would be false.
+- **~48% of this suite's runtime is fixed overhead** that no selection strategy can remove, so
+  wall-clock reduction is structurally capped. On a large real-world suite (minutes, not
+  seconds) that fixed cost amortises away and wall-clock savings would track execution-time
+  savings much more closely — but that is an extrapolation, not something measured here.
+- The defensible headline is a **range across scenarios, not a single best case**: 9.5-58.2%
+  wall-clock reduction, 57.5-98.9% fewer tests run. Quoting "58%" alone would be cherry-picking
+  the best of four measured scenarios.
+- An earlier version of the benchmark reported ">100% of reducible time captured", which is
+  impossible and revealed a real methodology bug (a global collection floor isn't valid when
+  passing explicit node ids, since pytest then collects fewer files). Fixed by measuring
+  `--collect-only` overhead per arm. Flagging it because it's exactly the kind of error that
+  produces a great-looking, wrong number.
 
 ### Phase 3 — Flakiness Detection (complete, pending your sanity check of the threshold)
 - Threshold decision (`app/analysis/classify.py`): a test is **flaky** if it produced both a

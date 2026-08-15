@@ -8,8 +8,8 @@ Built as a resume-shortlisting portfolio project targeting Core SDE / SWE intern
 see `CI_Brain_Claude_Code_Roadmap.pdf` for the full phase-by-phase plan and `HUMAN_GUIDE.md`
 for architecture notes and how to run it.
 
-**Status: Phase 2 of 7 complete** (project scaffold + ingestion API; replay harness against a
-real benchmark repo).
+**Status: Phase 4 of 7 complete** (ingestion API, replay harness, flaky-test detection, and
+coverage-graph test impact analysis).
 
 ## Stack
 

@@ -9,6 +9,26 @@ class JUnitParseError(ValueError):
     pass
 
 
+def file_path_from_classname(classname: str) -> str:
+    """Derive the test's source file from a JUnit ``classname``.
+
+    pytest does not always emit a ``file`` attribute, and its ``classname``
+    folds the class into the dotted module path
+    (``toolz.tests.test_dicttoolz.TestDict``). Naively replacing dots with
+    slashes turns the class into a directory
+    (``toolz/tests/test_dicttoolz/TestDict.py``) - a path that doesn't exist,
+    which breaks anything that joins test results back to real files.
+
+    Class components are stripped using the PEP 8 convention that classes are
+    CapWords and modules/packages are lowercase. A module named ``Foo.py``
+    would defeat this, which is unconventional enough to accept.
+    """
+    parts = classname.split(".")
+    while len(parts) > 1 and parts[-1][:1].isupper():
+        parts.pop()
+    return "/".join(parts) + ".py"
+
+
 @dataclass
 class ParsedTestResult:
     node_id: str
@@ -42,7 +62,7 @@ def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
             raise JUnitParseError(f"<testcase> missing required name/classname attribute: {etree.tostring(tc)!r}")
 
         node_id = f"{classname}::{name}"
-        file_path = tc.get("file") or classname.replace(".", "/") + ".py"
+        file_path = tc.get("file") or file_path_from_classname(classname)
 
         duration_raw = tc.get("time")
         try:

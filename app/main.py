@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 
-from app.api import flakiness, repos, runs
+from app.api import flakiness, impact, repos, runs
 
 app = FastAPI(title="CI Brain", version="0.1.0")
 
 app.include_router(repos.router)
 app.include_router(runs.router)
 app.include_router(flakiness.router)
+app.include_router(impact.router)
 
 
 @app.get("/health")

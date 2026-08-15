@@ -59,3 +59,16 @@ def test_missing_file_attribute_falls_back_to_classname():
 def test_malformed_input_raises(raw):
     with pytest.raises(JUnitParseError):
         parse_junit_xml(raw)
+
+
+def test_file_path_strips_class_component():
+    from app.parsers.junit import file_path_from_classname
+
+    # module-level test function: classname is purely the module path
+    assert file_path_from_classname("toolz.sandbox.tests.test_core") == "toolz/sandbox/tests/test_core.py"
+    # class-based test: the CapWords class must not become a directory
+    assert file_path_from_classname("toolz.tests.test_dicttoolz.TestDict") == "toolz/tests/test_dicttoolz.py"
+    # nested classes
+    assert file_path_from_classname("pkg.mod.Outer.Inner") == "pkg/mod.py"
+    # single bare module
+    assert file_path_from_classname("test_thing") == "test_thing.py"
