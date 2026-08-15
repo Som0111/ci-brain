@@ -1,7 +1,6 @@
 # CI Brain — Developer Guide
 
-Single reference doc for this project. Updated at the end of every completed phase per
-`docs/PROJECT_RULES.md`.
+Single reference doc for this project. Updated at the end of every completed phase.
 
 ## What this project does
 

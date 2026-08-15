@@ -1,6 +1,8 @@
-# CI Brain
+# Continuous Integration (CI) Brain
 
-**Live API: [https://ci-brain.onrender.com](https://ci-brain.onrender.com)** ([`/health`](https://ci-brain.onrender.com/health) should return `{"status":"ok"}` — free tier sleeps after 15 min idle, first request after that takes ~50s)
+**Live API: [https://ci-brain.onrender.com](https://ci-brain.onrender.com)**
+
+You can check that the API is running by opening [`/health`](https://ci-brain.onrender.com/health), which should return `{"status":"ok"}`. Since it's hosted on Render's free tier, it may go to sleep after 15 minutes of inactivity, so the first request after that can take around 50 seconds.
 
 I built this to understand how the test-intelligence tooling used inside large engineering
 orgs actually works under the hood — the stuff that decides which tests to run on a diff,
