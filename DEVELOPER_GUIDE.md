@@ -203,6 +203,15 @@ Dashboard: `cd dashboard && npm run lint && npx tsc -b --noEmit && npm run build
 
 ## Known limitations / gotchas
 
+- **The Render deploy 502'd on every DB-touching endpoint after a sustained ingestion burst**
+  (25 replay-harness requests back to back), while `/health` (no DB) kept returning 200 the
+  whole time — a clean signature of a dead pooled connection, not the app itself being down.
+  `create_engine()` had no `pool_pre_ping`, so SQLAlchemy kept handing out a connection that
+  Render's free-tier Postgres had already dropped (idle timeout or a restart under load)
+  instead of detecting and replacing it. Fixed with `pool_pre_ping=True` (validates before
+  each checkout) and `pool_recycle=280` (proactively recycles before a server-side idle limit
+  hits) in `app/database.py`. If this recurs after a quiet period rather than under load,
+  that's the same root cause from a different trigger.
 - No auth on any endpoint — fine for a local/portfolio project, not fine for anything public.
   CORS is wide open (`allow_origins=["*"]`) for the same reason (see `app/main.py`).
 - Ingestion identifies a run only by `repo_id` path param; there's no idempotency/dedup if the
