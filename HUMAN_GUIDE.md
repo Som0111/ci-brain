@@ -1,7 +1,6 @@
 # CI Brain — Human Guide
 
-Single reference doc for this project. Updated at the end of every completed phase per
-`CLAUDE_CODE_PROJECT_RULES.md`.
+Single reference doc for this project. Updated at the end of every completed phase.
 
 ## What this project does
 
