@@ -14,7 +14,7 @@ coverage-graph test impact analysis, LLM-assisted failure clustering, Docker, an
 ## Stack
 
 FastAPI, PostgreSQL + SQLAlchemy + Alembic, pytest (98%+ coverage), Google Gemini (failure
-summarization), Docker + GitHub Actions CI/CD, deploy-ready for Render.
+summarization), Docker + GitHub Actions CI/CD, deployed on Render.
 
 ## Quickstart
 

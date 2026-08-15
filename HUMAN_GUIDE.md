@@ -156,6 +156,8 @@ once by hand — Render account/secrets aren't something I can set up for you.
 After this one-time setup, every push to `master` on GitHub auto-triggers a new Render build
 and deploy — nothing further to do manually.
 
+**Confirmed live**: `/health` returns `{"status":"ok"}` on the deployed Render instance.
+
 ## How to test it
 
 ```
