@@ -173,7 +173,42 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
-### Phase 5 — Failure Clustering (clustering complete; LLM summary step pending API key)
+### Phase 5 — Failure Clustering + LLM Summary (complete)
+
+**LLM layer**: `app/analysis/summarize.py`, one call per cluster via `gemini-3.5-flash` (Google
+Gemini, not Anthropic - this project's LLM-layer provider choice, independent of which Claude
+model built each phase). Single call, no retries/agent loop/RAG, per the roadmap's locked
+scope - RAG over failure history is an explicit stretch goal, cut here. Model note: the SDK
+initially 404'd on `gemini-2.5-flash` ("no longer available to new users") despite it appearing
+in `client.models.list()`; `gemini-3.5-flash` (current-generation, non-preview) works.
+
+**Endpoint**: `POST /repos/{id}/failure-clusters/summarize` (`?run_id=&baseline_repo_id=&
+min_cluster_size=2&max_clusters=10`). Deliberately a `POST` with cost-bounding params, never
+the free `GET` report - this spends real money per call, so nothing should trigger it
+implicitly (a page load, a retry, a cache-buster). `min_cluster_size` defaults to skipping
+singleton clusters (less likely to indicate a systemic cause); `max_clusters` caps the bill
+regardless of how many clusters exist. Automated tests mock `summarize_cluster` entirely - the
+suite makes zero real API calls, is free, deterministic, and doesn't depend on the key existing.
+
+**Verified live** (2 real calls, capped via `max_clusters=2`): the `dicttoolz.py` cluster
+(18 failures) got an accurate "dropped data / wrong return value in merge, contents not
+populated" hypothesis - matches the seeded bug exactly. The `itertoolz.py` cluster (15
+failures, the one clustering couldn't split - see Phase 5 clustering notes above) still got a
+correct, specific hypothesis ("off-by-one... first element being skipped... cascades to
+corrupt join/unique") purely from the representative failure text, without being told which
+bug was seeded. Worth noting: the LLM partially compensated for the clustering algorithm's
+known limitation here, by reading the actual evidence rather than just the file-level grouping.
+
+**Prompt design**: gives the model real evidence only (file list, test names, one
+representative failure message, the call-hint if present) and asks for a hypothesis, not an
+answer - it is never told the ground-truth seeded bug. Asks it to say "evidence too thin"
+rather than invent a cause when unsure.
+
+**Cost note**: `.env` holds `GEMINI_API_KEY` (gitignored, template in `.env.example`). Every
+call to the summarize endpoint costs real money, scaled by `max_clusters`. Don't script this
+into a loop or CI step without a hard cap.
+
+### Phase 5 clustering notes (superseded by the complete summary above; kept for the design history)
 
 **Seeded bugs.** 4 real, deterministic logic bugs (not flaky - always reproduce) in a
 separate clone (`toolz-bug-seed`, applied via `seeds/bugs/*.py` same as Phase 3's pattern):
@@ -217,12 +252,8 @@ the traceback text) - would have broken both clustering and any future LLM promp
 that text. Fixed in `scripts/run_target_tests.py`; not backfilled into already-stored Phase 3
 data since that data was never used for message content.
 
-**Remaining for this phase**: the LLM summarizer (one call per cluster -> plain-English
-root-cause hypothesis) needs an Anthropic API key, which isn't configured yet - paused here
-rather than blocking the rest of the phase on it. Also still open: tests for the clustering
-logic against the known seeded bugs beyond what's already in `tests/test_clustering.py`
-(current tests use synthetic fixtures; could add a fixture-driven test replaying the real
-25-failure/12-cluster shape as a regression guard).
+(LLM summarizer, originally the "remaining" item here, is done - see the complete Phase 5
+section above.)
 
 ### Phase 4 — Test Impact Analysis (complete; benchmark framing reviewed and approved)
 

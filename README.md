@@ -8,12 +8,13 @@ Built as a resume-shortlisting portfolio project targeting Core SDE / SWE intern
 see `CI_Brain_Claude_Code_Roadmap.pdf` for the full phase-by-phase plan and `HUMAN_GUIDE.md`
 for architecture notes and how to run it.
 
-**Status: Phase 4 of 7 complete** (ingestion API, replay harness, flaky-test detection, and
-coverage-graph test impact analysis).
+**Status: Phase 5 of 7 complete** (ingestion API, replay harness, flaky-test detection,
+coverage-graph test impact analysis, and LLM-assisted failure clustering).
 
 ## Stack
 
-FastAPI, PostgreSQL + SQLAlchemy + Alembic, pytest, Docker (coming in Phase 6).
+FastAPI, PostgreSQL + SQLAlchemy + Alembic, pytest, Google Gemini (failure summarization),
+Docker (coming in Phase 6).
 
 ## Quickstart
 
