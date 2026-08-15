@@ -173,7 +173,12 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
-### Phase 4 — Test Impact Analysis (complete, pending your review of the benchmark framing)
+### Phase 4 — Test Impact Analysis (complete; benchmark framing reviewed and approved)
+
+> Soumya reviewed and approved quoting the **range** (9.5-58.2% wall-clock reduction across
+> four measured scenarios) rather than a single best-case figure. Do not restate the
+> test-count reduction (57.5-98.9%) as a runtime saving - they are different measurements.
+
 
 **What it does.** `app/analysis/impact.py` builds a source-file -> tests map from the stored
 per-test coverage contexts (unioned across all runs of a repo), then selects the tests to run
