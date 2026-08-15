@@ -103,6 +103,66 @@ directly in the clone:
 runs the **full** suite, and asserts every test that actually failed was in the selected subset.
 It restores the file afterwards (both by rewriting the original text and `git checkout`).
 
+## How to run it with Docker (local)
+
+**Docker isn't installed on this machine yet** — these files are written correctly against
+the project's actual dependencies but haven't been build-tested locally. The GitHub Actions
+`deploy.yml` workflow *will* validate the real build on every push (GitHub's runners have
+Docker preinstalled), so it'll get tested for real once pushed even without installing Docker
+here. To test locally first:
+
+1. Go to `docker.com/products/docker-desktop`, download the Windows installer, run it, accept
+   the defaults (it will ask to enable WSL2 — allow it, restart if prompted).
+2. Open Docker Desktop once from the Start menu and wait for it to say "Docker Desktop is
+   running" (whale icon in the system tray stops animating).
+3. From `C:\Users\USER\projects\ci-brain`:
+   ```
+   docker compose up --build
+   ```
+4. First run pulls the Postgres image and builds the app image — takes a few minutes. Once
+   both containers are up, API is at `http://localhost:8000/health`.
+5. `docker compose down` to stop; add `-v` to also delete the Postgres volume (fresh DB next
+   time).
+
+## How to deploy (Render) — one-time manual steps
+
+Docker + GitHub Actions handle build validation automatically; the actual deploy is Render's
+own GitHub integration (auto-deploys on every push to `master`), which needs to be connected
+once by hand — Render account/secrets aren't something I can set up for you.
+
+**Part 1 — create the Postgres database:**
+1. Go to `dashboard.render.com`, log in (same account as ChurnGuard).
+2. Click **New +** (top right) → **PostgreSQL**.
+3. Name it `ci-brain-db`, leave the rest default, click **Create Database**.
+4. Once it's provisioned, on the database's page find **Internal Database URL** and copy it
+   (looks like `postgresql://ci_brain_db_user:...@dpg-xxxx/ci_brain_db`). You'll paste this in
+   Part 2 — keep the tab open or paste it somewhere temporary.
+
+**Part 2 — create the web service:**
+1. Click **New +** → **Web Service**.
+2. Choose **Build and deploy from a Git repository**, click **Next**, find and select
+   `Som0111/ci-brain`, click **Connect**.
+3. **Name**: `ci-brain` (or whatever you prefer — this becomes part of the URL).
+4. **Region**: closest to you.
+5. **Branch**: `master`.
+6. **Runtime**: select **Docker** (Render will detect the `Dockerfile` automatically).
+7. Scroll to **Environment Variables**, click **Add Environment Variable** twice:
+   - Key `DATABASE_URL`, value: the Internal Database URL from Part 1 (paste as-is — no need
+     to change `postgresql://` to `postgresql+psycopg2://`, SQLAlchemy picks psycopg2 by
+     default when it's the only driver installed).
+   - Key `GEMINI_API_KEY`, value: your Gemini key (same one in your local `.env`).
+8. Choose the **Free** instance type.
+9. Click **Create Web Service**. Render will build the Docker image and start it — this can
+   take a few minutes on the first build. Watch the **Logs** tab; the entrypoint script runs
+   `alembic upgrade head` before starting the server, so migration errors will show up there
+   first if something's wrong.
+10. Once live, Render gives you a URL like `https://ci-brain-xxxx.onrender.com`. Test it with
+    `/health` — expect `{"status":"ok"}`. **Cold start note**: free tier sleeps after 15 min
+    idle, first request after that takes ~50s (same as ChurnGuard).
+
+After this one-time setup, every push to `master` on GitHub auto-triggers a new Render build
+and deploy — nothing further to do manually.
+
 ## How to test it
 
 ```
@@ -122,9 +182,19 @@ by default (see `pytest.ini`/`.coveragerc`) and fails if branch coverage drops b
 | Run the API | `.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000` |
 | Set up/refresh target repo | `.venv\Scripts\python.exe scripts\clone_target.py --variant <name>` |
 | Replay N runs into the API | `.venv\Scripts\python.exe -m scripts.replay_harness -n 5 --variant <name> --repo-name <name>` |
+| Lint | `.venv\Scripts\python.exe -m ruff check app/ tests/ scripts/` |
+| Lint (auto-fix) | `.venv\Scripts\python.exe -m ruff check app/ tests/ scripts/ --fix` |
+| Run everything in Docker | `docker compose up --build` |
 
 ## Known limitations / gotchas
 
+- **Docker build is unverified locally** — no Docker installed on the dev machine as of Phase
+  6. Written correctly against the project's real dependencies (confirmed no Windows-only
+  packages in `requirements.txt`, psycopg2-binary needs no build tools on Debian slim), but
+  the first real build test happens either via `deploy.yml` on GitHub's runners, or locally
+  once Docker Desktop is installed (steps above). If it fails, check the base image tag
+  (`python:3.14-slim`) first — if that tag doesn't exist yet, `python:3.14-slim-bookworm` is
+  the explicit fallback.
 - **SQLite vs Postgres divergence bit us once**: the enum bug above (`values_callable`) only
   showed up when testing against real Postgres — SQLite has no native enum type, so it
   silently accepted whatever string SQLAlchemy sent. If something works in `pytest` but fails
@@ -174,7 +244,7 @@ by default (see `pytest.ini`/`.coveragerc`) and fails if branch coverage drops b
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
-### Phase 6 — CI/CD, Docker, Platform's Own Test Suite (in progress)
+### Phase 6 — CI/CD, Docker, Platform's Own Test Suite (complete; Docker build unverified locally)
 
 **Coverage gap-filling (real gaps, not busywork).** Baseline was 88% - and the missing 12%
 was concentrated exactly where you'd expect after Phases 3-4 were verified live via `curl`
@@ -194,6 +264,31 @@ test's DB fixture by design, and `app/analysis/summarize.py`'s actual Gemini API
 never exercised automatically since that would spend real money and depend on network/API
 state on every test run - both are Phase 5's already-established pattern (mock at the
 boundary), not new gaps.
+
+**Docker**: `Dockerfile` (python:3.14-slim, psycopg2-binary needs no build tools),
+`docker-entrypoint.sh` (runs `alembic upgrade head` then starts uvicorn - migrations happen
+automatically on every container start), `docker-compose.yml` (app + Postgres 18, matching the
+locally-installed native version), `.dockerignore` (excludes `.env`, `target_repos/`,
+`replay_data/`, and other dev-only content from the image). **Not build-tested locally** -
+no Docker on this machine (see the deploy section above for install steps). Will get validated
+for real by `deploy.yml`'s build job on GitHub's runners regardless.
+
+**Lint**: `ruff`, configured in `pyproject.toml`. One rule (`B008`,
+function-call-in-default-argument) is disabled project-wide because it flags FastAPI's
+standard `Depends(get_db)` pattern as a bug, which it isn't. Started with 19 findings after
+adding rules; narrowed the rule set once (dropped the full Pylint category - 59
+magic-value-comparison hits on things like test status codes were noise, not real issues) down
+to 5 genuine findings, all fixed: 2 unsorted-import blocks, 1 unused test variable, and 2
+`subprocess.run` calls missing an explicit `check=False` (both are pytest invocations expected
+to exit non-zero on test failures - the explicit `check=False` now documents that's
+intentional rather than an oversight).
+
+**CI** (`.github/workflows/ci.yml`): lint + test on every PR and push to `master`, no Postgres
+service needed (tests use in-memory SQLite). **Deploy** (`.github/workflows/deploy.yml`):
+validates the Docker image builds on GitHub's runners on every push to `master`. The actual
+deploy is *not* a GitHub Actions step - Render's own GitHub integration auto-deploys from the
+same Dockerfile once connected (see the manual setup steps above), so there's no deploy
+token/secret to manage in CI at all for this project's setup.
 
 **Coverage config**: `.coveragerc` (branch coverage on, `source = app`) + `pytest.ini`
 (`--cov-fail-under=90`, so `pytest` alone now runs with coverage and fails the run if it drops

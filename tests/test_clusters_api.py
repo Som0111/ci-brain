@@ -57,7 +57,7 @@ def test_run_id_scopes_to_one_run(client, repo_id):
         f"/repos/{repo_id}/runs",
         files={"junit_xml": ("j.xml", io.BytesIO(_junit([("m", "test_a", "assert 1 == 2")])), "text/xml")},
     )
-    r2 = client.post(
+    client.post(
         f"/repos/{repo_id}/runs",
         files={"junit_xml": ("j.xml", io.BytesIO(_junit([("m", "test_a", "assert 1 == 2")])), "text/xml")},
     )

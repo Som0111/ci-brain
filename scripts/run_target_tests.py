@@ -47,6 +47,7 @@ def run_once(out_dir: Path, variant: str = "toolz") -> int:
         ],
         cwd=tdir,
         env=env,
+        check=False,  # pytest exits non-zero on test failures - that's expected, not an error here
     )
 
     subprocess.run(

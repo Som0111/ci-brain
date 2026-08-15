@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+    "B008",  # function-call-in-default-argument: FastAPI's Depends(get_db) pattern is idiomatic, not a bug
+]

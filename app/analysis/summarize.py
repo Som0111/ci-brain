@@ -51,14 +51,24 @@ class ClusterSummary:
 def build_prompt(cluster: FailureCluster) -> str:
     rep = cluster.representative
     other = sorted({f.node_id for f in cluster.failures if f.node_id != rep.node_id})
-    hint_line = f"pytest identified the directly-involved function as: {cluster.call_hint}()\n" if cluster.call_hint else ""
+    hint_line = (
+        f"pytest identified the directly-involved function as: {cluster.call_hint}()\n"
+        if cluster.call_hint
+        else ""
+    )
+    if other:
+        other_tests = ", ".join(other[:10])
+        if len(other) > 10:
+            other_tests += f", +{len(other) - 10} more"
+    else:
+        other_tests = "(none)"
     return PROMPT_TEMPLATE.format(
         count=cluster.size,
         files=", ".join(sorted(cluster.covered_files)) or "(no coverage data recorded for these tests)",
         hint_line=hint_line,
         test_name=rep.node_id,
         message=rep.message.strip()[:1000],
-        other_tests=", ".join(other[:10]) + (f", +{len(other) - 10} more" if len(other) > 10 else "") if other else "(none)",
+        other_tests=other_tests,
     )
 
 

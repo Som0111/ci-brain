@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ci_brain
+      POSTGRES_USER: ci_brain
+      POSTGRES_PASSWORD: ci_brain
+    ports:
+      - "5432:5432"
+    volumes:
+      - ci_brain_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ci_brain -d ci_brain"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ci_brain:ci_brain@db:5432/ci_brain
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  ci_brain_pgdata:

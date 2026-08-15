@@ -37,6 +37,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from sqlalchemy import select as sa_select
+
 from app.analysis.impact import (
     build_dependency_graph,
     get_all_tests,
@@ -48,7 +50,6 @@ from app.database import SessionLocal
 from app.models import TestCase
 from scripts.clone_target import target_dir
 from scripts.run_target_tests import target_python
-from sqlalchemy import select as sa_select
 
 SCENARIOS = ["toolz/dicttoolz.py", "toolz/itertoolz.py", "toolz/functoolz.py", "toolz/recipes.py"]
 
@@ -60,6 +61,7 @@ def time_pytest(variant: str, args: list[str]) -> float:
         [str(py), "-m", "pytest", *args, "-q", "-p", "no:cacheprovider"],
         cwd=target_dir(variant),
         capture_output=True,
+        check=False,  # pytest exits non-zero on test failures - that's expected, not an error here
     )
     return time.perf_counter() - start
 

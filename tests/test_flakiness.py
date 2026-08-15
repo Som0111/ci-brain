@@ -5,11 +5,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.analysis.flakiness import compute_variance_stats
 from app.database import Base
-from app.models import Repo, RunSource
+from app.models import Repo, RunSource, TestStatus
 from app.models import TestCase as TestCaseModel
 from app.models import TestResult as TestResultModel
 from app.models import TestRun as TestRunModel
-from app.models import TestStatus
 
 
 @pytest.fixture()
