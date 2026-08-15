@@ -30,7 +30,7 @@ export function useApiData<T>(fetcher: () => Promise<T>, deps: unknown[]): {
     // closure each render, and re-running on that would defeat the point of
     // `deps`, which callers set explicitly to the values that should
     // actually trigger a refetch. (react-hooks/exhaustive-deps disabled
-    // project-wide in .oxlintrc.json - see HUMAN_GUIDE.md for why.)
+    // project-wide in .oxlintrc.json - see DEVELOPER_GUIDE.md for why.)
   }, deps);
 
   return { data, loading, error };

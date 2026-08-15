@@ -2,7 +2,7 @@
 Run one variant of the target repo's suite N times and push each run through
 the Phase 1 ingestion API (POST /repos/{repo_id}/runs).
 
-Requires the CI Brain API to already be running (see HUMAN_GUIDE.md).
+Requires the CI Brain API to already be running (see DEVELOPER_GUIDE.md).
 
 `--repo-name` controls which logical Repo the runs are stored under in CI
 Brain's own DB. Seeded variants (flaky, buggy) use their own repo name so

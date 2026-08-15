@@ -9,7 +9,7 @@ All numbers below come from replaying the real test suite of
 [pytoolz/toolz](https://github.com/pytoolz/toolz) (a small, pure-Python utility library — 186
 tests, ~2 seconds per run), pinned to commit `568c2b83` so every phase's numbers are
 reproducible against the exact same code. Full methodology, including two real measurement
-bugs found and fixed while producing these numbers, is in `HUMAN_GUIDE.md`.
+bugs found and fixed while producing these numbers, is in `DEVELOPER_GUIDE.md`.
 
 ## What's real and what's synthetic — read this before quoting anything
 

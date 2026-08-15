@@ -4,7 +4,7 @@ This is a committed snapshot (`app/data/benchmark_results.json`), not a
 live-recomputed number - the actual benchmark methodology (interleaved A/B
 sampling, multiple reps, a quiet machine) takes minutes and isn't something
 to redo on every dashboard page load. The numbers are real measurements
-(see HUMAN_GUIDE.md's Phase 4 section for the full methodology and the two
+(see DEVELOPER_GUIDE.md's Phase 4 section for the full methodology and the two
 measurement bugs found and fixed while producing them), just not
 recalculated per-request.
 """

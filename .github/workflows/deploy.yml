@@ -17,4 +17,4 @@ jobs:
   # on push to master, using the same Dockerfile validated by the build job
   # above), not a custom deploy step here - Render doesn't need a
   # GitHub-Actions-triggered push/token for this project's setup. See
-  # HUMAN_GUIDE.md for the one-time manual dashboard steps.
+  # DEVELOPER_GUIDE.md for the one-time manual dashboard steps.

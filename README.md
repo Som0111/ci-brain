@@ -25,7 +25,7 @@ for the detector and the clustering to catch. They're clearly labeled as seeded 
 the code and docs; I'm not passing them off as bugs I found in the wild.
 
 Full results and what's real vs. synthetic: [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
-Architecture notes and how to run everything: [`HUMAN_GUIDE.md`](HUMAN_GUIDE.md).
+Architecture notes and how to run everything: [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 
 ## What I found
 
@@ -62,7 +62,7 @@ Dashboard (needs the API running above):
 cd dashboard && npm install && npm run dev
 ```
 
-`HUMAN_GUIDE.md` has the full setup, the replay harness I used to generate test data, how to
+`DEVELOPER_GUIDE.md` has the full setup, the replay harness I used to generate test data, how to
 seed the synthetic variants, deployment steps, and everything I hit along the way that wasn't
 obvious the first time.
 

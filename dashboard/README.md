@@ -36,4 +36,4 @@ view alongside the chart rather than relying on the chart alone.
 Two oxlint rules (`react-hooks/exhaustive-deps`, `react/only-export-components`) are disabled
 project-wide in `.oxlintrc.json` - both fire on legitimate small-project patterns (a generic
 data-fetching hook with an explicit deps array; a context+provider pair in one file) rather
-than real bugs. See `HUMAN_GUIDE.md` at the repo root for the full reasoning.
+than real bugs. See `DEVELOPER_GUIDE.md` at the repo root for the full reasoning.

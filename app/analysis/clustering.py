@@ -5,7 +5,7 @@
 These are pytest `assert` failures, so the traceback's deepest frame is
 always *inside the test function*, not inside whatever library code is
 actually buggy. Text similarity between messages was tried and measured
-empirically (see the calibration script referenced in HUMAN_GUIDE.md): two
+empirically (see the calibration script referenced in DEVELOPER_GUIDE.md): two
 failures from the *same* seeded bug (both `merge()`) scored a *lower*
 similarity ratio (0.41) than two failures from *different* bugs (0.75),
 because dict/defaultdict/custom-object diffs vary wildly in shape even for
@@ -33,7 +33,7 @@ compared directly rather than through a captured call) fall back to the
 file-level grouping and land in one cluster together, mixing the two bugs.
 This is a real limitation of a heuristic approach, not a bug worth chasing
 further here - see `tests/test_clustering.py` for what does and doesn't
-separate, and HUMAN_GUIDE.md for the measurement that led to this design.
+separate, and DEVELOPER_GUIDE.md for the measurement that led to this design.
 """
 import re
 from dataclasses import dataclass, field

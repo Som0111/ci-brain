@@ -59,7 +59,7 @@ export function Benchmark() {
       <p className="page__subtitle">
         Median of {results.reps} interleaved reps against a real repo ({results.variant}), no
         coverage instrumentation. This is a recorded snapshot from Phase 4, not recomputed on
-        every page load — see HUMAN_GUIDE.md for the full methodology, including two measurement
+        every page load — see DEVELOPER_GUIDE.md for the full methodology, including two measurement
         bugs found and fixed while producing these numbers.
       </p>
 

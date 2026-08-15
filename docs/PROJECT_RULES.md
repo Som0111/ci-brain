@@ -74,7 +74,7 @@ Claude should:
 
 Maintain one separate file:
 
-`HUMAN_GUIDE.md`
+`DEVELOPER_GUIDE.md`
 
 It must concisely contain:
 - What the project does
@@ -89,12 +89,12 @@ It must concisely contain:
 - Important troubleshooting notes
 
 ### Auto-update rule
-At the end of **every completed phase**, Claude must update `HUMAN_GUIDE.md` before marking that phase complete.
+At the end of **every completed phase**, Claude must update `DEVELOPER_GUIDE.md` before marking that phase complete.
 
-Do not create separate explanation artifacts unless genuinely necessary. Keep human-facing knowledge consolidated in `HUMAN_GUIDE.md`.
+Do not create separate explanation artifacts unless genuinely necessary. Keep human-facing knowledge consolidated in `DEVELOPER_GUIDE.md`.
 
 ## Standard Workflow
 
-`Phase → Subphases (≤20 min each) → Implement → Test → Self-review → Fix → Re-test → Update checklist → Update HUMAN_GUIDE.md → Complete`
+`Phase → Subphases (≤20 min each) → Implement → Test → Self-review → Fix → Re-test → Update checklist → Update DEVELOPER_GUIDE.md → Complete`
 
 The roadmap is **phase-based and adaptive**, not time-based. Phases may finish early or be expanded when implementation complexity genuinely requires it.

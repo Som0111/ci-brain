@@ -1,7 +1,7 @@
-# CI Brain — Human Guide
+# CI Brain — Developer Guide
 
 Single reference doc for this project. Updated at the end of every completed phase per
-`CLAUDE_CODE_PROJECT_RULES.md`.
+`docs/PROJECT_RULES.md`.
 
 ## What this project does
 
@@ -21,7 +21,7 @@ coverage.py JSON with per-test contexts) from a target repo's CI, and:
 Benchmarked against a real open-source Python repo (`toolz`), with synthetic flaky tests and
 synthetic bugs deliberately seeded into separate clones to exercise detection and clustering —
 clearly labeled as synthetic throughout, never presented as organically discovered. See
-`CI_Brain_Claude_Code_Roadmap.pdf` for the full phase plan and locked scope decisions.
+`docs/CI_Brain_Roadmap.pdf` for the full phase plan and locked scope decisions.
 
 ## Why the major components exist
 
@@ -403,7 +403,7 @@ Dashboard: `cd dashboard && npm run lint && npx tsc -b --noEmit && npm run build
   judgment call as `B008` on the Python side.
 - Verified: `tsc` type-checks clean, oxlint clean, production build succeeds, and manually
   confirmed working end-to-end against the real API (all 4 views render real data).
-- HUMAN_GUIDE.md consolidated into this final pass — reorganized chronologically, merged a
+- DEVELOPER_GUIDE.md consolidated into this final pass — reorganized chronologically, merged a
   duplicated Phase 5 section, updated the stale future-tense project description, added the
   dashboard and Docker/CI/CD components that were missing.
 
