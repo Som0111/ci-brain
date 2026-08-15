@@ -1,5 +1,7 @@
 # CI Brain
 
+**Live API: [https://ci-brain.onrender.com](https://ci-brain.onrender.com)** ([`/health`](https://ci-brain.onrender.com/health) should return `{"status":"ok"}` — free tier sleeps after 15 min idle, first request after that takes ~50s)
+
 A CI test-intelligence platform for Python repos: it detects flaky tests statistically,
 predicts the minimal set of tests to run for a code change (coverage-graph test impact
 analysis, verified to never drop a real test failure), and clusters test failures by root
@@ -16,7 +18,7 @@ phase-by-phase build plan.
 
 **Status: Phase 7 of 7 complete.** All 7 phases implemented, tested, and deployed. Benchmark
 writeup and resume line ([`docs/BENCHMARK.md`](docs/BENCHMARK.md)) reviewed and approved.
-<!-- TODO: link the live Render URL here once confirmed for public sharing -->
+Deployed and confirmed live.
 
 ## What it does
 

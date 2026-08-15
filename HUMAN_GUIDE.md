@@ -173,7 +173,7 @@ Render account/secrets aren't something anyone but Soumya can set up.
 
 After this one-time setup, every push to `master` auto-triggers a new build and deploy.
 
-**Confirmed live**: `/health` returns `{"status":"ok"}` on the deployed Render instance.
+**Confirmed live**: https://ci-brain.onrender.com/health returns `{"status":"ok"}`.
 
 ## How to test it
 
