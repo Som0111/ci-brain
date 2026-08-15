@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="pytest" errors="1" failures="1" skipped="1" tests="4" time="0.123">
+    <testcase classname="tests.test_math" name="test_add" file="tests/test_math.py" line="4" time="0.001" />
+    <testcase classname="tests.test_math" name="test_divide" file="tests/test_math.py" line="10" time="0.002">
+      <failure message="ZeroDivisionError: division by zero">Traceback (most recent call last):
+  File "tests/test_math.py", line 12, in test_divide
+    1 / 0
+ZeroDivisionError: division by zero</failure>
+    </testcase>
+    <testcase classname="tests.test_math" name="test_slow" file="tests/test_math.py" line="20" time="0.5">
+      <error message="TimeoutError: exceeded 0.1s">TimeoutError: exceeded 0.1s</error>
+    </testcase>
+    <testcase classname="tests.test_math" name="test_windows_only" file="tests/test_math.py" line="30" time="0.0">
+      <skipped message="skipped on this platform" />
+    </testcase>
+  </testsuite>
+</testsuites>
