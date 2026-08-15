@@ -8,7 +8,12 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ci_brain_pgdata:/var/lib/postgresql/data
+      # Postgres 18+'s image expects the volume at the *parent* directory now,
+      # not /var/lib/postgresql/data - it manages a version-specific
+      # subdirectory itself (for pg_upgrade compatibility). Mounting at
+      # .../data directly makes the entrypoint refuse to start.
+      # See https://github.com/docker-library/postgres/pull/1259
+      - ci_brain_pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ci_brain -d ci_brain"]
       interval: 5s

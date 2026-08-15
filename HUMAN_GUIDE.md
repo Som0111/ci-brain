@@ -105,24 +105,17 @@ It restores the file afterwards (both by rewriting the original text and `git ch
 
 ## How to run it with Docker (local)
 
-**Docker isn't installed on this machine yet** — these files are written correctly against
-the project's actual dependencies but haven't been build-tested locally. The GitHub Actions
-`deploy.yml` workflow *will* validate the real build on every push (GitHub's runners have
-Docker preinstalled), so it'll get tested for real once pushed even without installing Docker
-here. To test locally first:
+**Verified working** (Docker Desktop installed and tested end-to-end): `db-1` reaches
+healthy, the app container's entrypoint runs the Alembic migration, Uvicorn serves on `:8000`.
 
-1. Go to `docker.com/products/docker-desktop`, download the Windows installer, run it, accept
-   the defaults (it will ask to enable WSL2 — allow it, restart if prompted).
-2. Open Docker Desktop once from the Start menu and wait for it to say "Docker Desktop is
-   running" (whale icon in the system tray stops animating).
-3. From `C:\Users\USER\projects\ci-brain`:
+1. From `C:\Users\USER\projects\ci-brain`:
    ```
    docker compose up --build
    ```
-4. First run pulls the Postgres image and builds the app image — takes a few minutes. Once
+2. First run pulls the Postgres image and builds the app image — takes a few minutes. Once
    both containers are up, API is at `http://localhost:8000/health`.
-5. `docker compose down` to stop; add `-v` to also delete the Postgres volume (fresh DB next
-   time).
+3. `docker compose down` to stop; add `-v` to also delete the Postgres volume (fresh DB next
+   time, re-runs migrations from scratch).
 
 ## How to deploy (Render) — one-time manual steps
 
@@ -188,13 +181,15 @@ by default (see `pytest.ini`/`.coveragerc`) and fails if branch coverage drops b
 
 ## Known limitations / gotchas
 
-- **Docker build is unverified locally** — no Docker installed on the dev machine as of Phase
-  6. Written correctly against the project's real dependencies (confirmed no Windows-only
-  packages in `requirements.txt`, psycopg2-binary needs no build tools on Debian slim), but
-  the first real build test happens either via `deploy.yml` on GitHub's runners, or locally
-  once Docker Desktop is installed (steps above). If it fails, check the base image tag
-  (`python:3.14-slim`) first — if that tag doesn't exist yet, `python:3.14-slim-bookworm` is
-  the explicit fallback.
+- **Postgres 18+'s official image changed its expected volume mount point.** `docker compose up`
+  failed on the first real run with `these Docker images are configured to store database data
+  in a format which is compatible with "pg_ctlcluster"` and refused to start: the image now
+  wants the named volume mounted at the *parent* directory (`/var/lib/postgresql`), not
+  `/var/lib/postgresql/data` as most older Compose examples (and this project's first draft)
+  use — it manages a version-specific subdirectory itself now, for `pg_upgrade` compatibility.
+  Fixed in `docker-compose.yml`. See https://github.com/docker-library/postgres/pull/1259.
+  **Verified working end-to-end** after the fix: `db-1` reaches healthy, the app container's
+  entrypoint runs the Alembic migration successfully, Uvicorn serves on `:8000`.
 - **SQLite vs Postgres divergence bit us once**: the enum bug above (`values_callable`) only
   showed up when testing against real Postgres — SQLite has no native enum type, so it
   silently accepted whatever string SQLAlchemy sent. If something works in `pytest` but fails
@@ -244,7 +239,7 @@ by default (see `pytest.ini`/`.coveragerc`) and fails if branch coverage drops b
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
-### Phase 6 — CI/CD, Docker, Platform's Own Test Suite (complete; Docker build unverified locally)
+### Phase 6 — CI/CD, Docker, Platform's Own Test Suite (complete)
 
 **Coverage gap-filling (real gaps, not busywork).** Baseline was 88% - and the missing 12%
 was concentrated exactly where you'd expect after Phases 3-4 were verified live via `curl`
@@ -269,9 +264,11 @@ boundary), not new gaps.
 `docker-entrypoint.sh` (runs `alembic upgrade head` then starts uvicorn - migrations happen
 automatically on every container start), `docker-compose.yml` (app + Postgres 18, matching the
 locally-installed native version), `.dockerignore` (excludes `.env`, `target_repos/`,
-`replay_data/`, and other dev-only content from the image). **Not build-tested locally** -
-no Docker on this machine (see the deploy section above for install steps). Will get validated
-for real by `deploy.yml`'s build job on GitHub's runners regardless.
+`replay_data/`, and other dev-only content from the image). **Verified working end-to-end**
+via `docker compose up --build`: Postgres reaches healthy, the entrypoint's Alembic migration
+runs cleanly, Uvicorn serves on `:8000`. Hit one real bug getting there - the official
+Postgres 18+ image changed its expected volume mount point (parent dir, not `.../data` - see
+the limitations section below); fixed once, verified after.
 
 **Lint**: `ruff`, configured in `pyproject.toml`. One rule (`B008`,
 function-call-in-default-argument) is disabled project-wide because it flags FastAPI's
