@@ -1,7 +1,7 @@
 # CI Brain — Benchmark & Results Writeup
 
-**Status: draft, pending review.** Per the project roadmap, nothing in this document should be
-quoted on a resume or shown publicly until Soumya has reviewed and approved the framing.
+**Status: approved.** Soumya reviewed and approved this writeup, the range framing
+(9.5–58.2% wall-clock reduction), and the suggested resume line below — safe to quote publicly.
 
 ## What was measured, and against what
 
@@ -72,14 +72,10 @@ Two real LLM calls (Google Gemini) verified live: both produced accurate, specif
 hypotheses (e.g. correctly identifying an off-by-one in `first()` from the failure text alone,
 without being told which bug was seeded).
 
-## Suggested resume line (draft — approve or edit before use)
+## Resume line (approved)
 
 > Built and deployed a CI test-intelligence platform (FastAPI, PostgreSQL, Docker, React) that
 > reduces CI test suite runtime by 9.5–58.2% via coverage-graph-based test impact analysis
 > (verified to never drop a real test failure across all measured scenarios), with statistical
 > flaky-test detection and LLM-assisted failure clustering; 98%+ test coverage, GitHub Actions
 > CI/CD, deployed on Render.
-
-**Open question for you**: is the range framing (rather than a single number) the version you
-want on your actual resume, or would you rather lead with a different phrase entirely? This
-draft is meant as a starting point, not a final answer.

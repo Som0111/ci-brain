@@ -416,8 +416,7 @@ Dashboard: `cd dashboard && npm run lint && npx tsc -b --noEmit && npm run build
   `.env` (already gitignored) before this ever touches a shared or public environment.
 - Git identity for this repo is `Som0111` / `soumyaswarup07@gmail.com`, matching ChurnGuard, so
   commits attribute correctly to your GitHub account.
-- The benchmark writeup and README framing — both need your review before anything goes on a
-  resume or gets shown publicly. See the separate benchmark writeup document.
+- The benchmark writeup (`docs/BENCHMARK.md`) and resume line are reviewed and approved.
 
 ## Troubleshooting notes
 

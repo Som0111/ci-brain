@@ -14,9 +14,8 @@ synthetic throughout, never presented as organically discovered. See
 [`docs/CI_Brain_Claude_Code_Roadmap.pdf`](docs/CI_Brain_Claude_Code_Roadmap.pdf) for the full
 phase-by-phase build plan.
 
-**Status: Phase 7 of 7 — engineering complete.** All 7 phases implemented, tested, and deployed.
-The full benchmark writeup ([`docs/BENCHMARK.md`](docs/BENCHMARK.md)) and suggested resume line
-are drafted and awaiting Soumya's review before being treated as final.
+**Status: Phase 7 of 7 complete.** All 7 phases implemented, tested, and deployed. Benchmark
+writeup and resume line ([`docs/BENCHMARK.md`](docs/BENCHMARK.md)) reviewed and approved.
 <!-- TODO: link the live Render URL here once confirmed for public sharing -->
 
 ## What it does
