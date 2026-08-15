@@ -162,7 +162,20 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
 
-### Phase 3 — Flakiness Detection (in progress: variance computation done, threshold pending)
+### Phase 3 — Flakiness Detection (complete, pending your sanity check of the threshold)
+- Threshold decision (`app/analysis/classify.py`): a test is **flaky** if it produced both a
+  pass and a fail on identical code — *not* a fail-rate percentage band, because a 5% fail
+  rate is still flaky while a 100% fail rate is just a broken test (reported separately as
+  "consistently failing"). **Confidence** comes from the minority-outcome count: seen 3+ times
+  = high, 2 = medium, 1 = low (one flip could be a fluke; three can't reasonably be).
+  **Quarantine** is recommended at medium+ confidence. Fewer than 5 non-skip runs =
+  "insufficient data" — refuse to classify rather than guess.
+- Report endpoint: `GET /repos/{id}/flakiness` (optional `?commit_sha=` filter).
+- Verified live against the 20 seeded runs: 4/4 seeded flaky tests flagged (3 high, 1 medium
+  confidence, all quarantined), 186/186 real tests stable, zero false positives.
+- 8 classification tests in `tests/test_classify.py` cover every verdict and boundary.
+
+#### (earlier) variance computation groundwork
 - `clone_target.py`/`run_target_tests.py`/`replay_harness.py` generalized to take a `--variant`
   (which `target_repos/<name>` clone to use) and `--repo-name` (which CI Brain DB repo to store
   under), so seeded variants never mix into the clean `toolz` baseline's run history.
