@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "react-hooks/exhaustive-deps": "off",
+    "react/only-export-components": "off"
+  }
+}
