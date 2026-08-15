@@ -87,3 +87,8 @@ def test_not_configured_reports_error_without_500(client, repo_id):
     entry = resp.json()["clusters"][0]
     assert entry["hypothesis"] is None
     assert entry["llm_error"] == "no key"
+
+
+def test_summarize_unknown_repo_404s(client):
+    resp = client.post("/repos/999/failure-clusters/summarize")
+    assert resp.status_code == 404

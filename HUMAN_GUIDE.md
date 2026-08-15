@@ -108,7 +108,8 @@ It restores the file afterwards (both by rewriting the original text and `git ch
 ```
 .venv\Scripts\python.exe -m pytest -q
 ```
-No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
+No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`). Runs with coverage
+by default (see `pytest.ini`/`.coveragerc`) and fails if branch coverage drops below 90%.
 
 ## Important commands
 
@@ -172,6 +173,31 @@ No Postgres needed — tests use in-memory SQLite (see `tests/conftest.py`).
 - Verified: ran 3 replay cycles against the live API; each stored run's result count (186) and
   status breakdown matched the raw `junit.xml` exactly, and `commit_sha` matched the pinned
   target commit.
+
+### Phase 6 — CI/CD, Docker, Platform's Own Test Suite (in progress)
+
+**Coverage gap-filling (real gaps, not busywork).** Baseline was 88% - and the missing 12%
+was concentrated exactly where you'd expect after Phases 3-4 were verified live via `curl`
+during development but never got real pytest coverage: `app/api/impact.py` was at 52%,
+`app/api/flakiness.py` at 63%. Added 33 new tests (`test_impact_api.py`,
+`test_flakiness_api.py`, `test_repos_api.py`, `test_summarize.py`, plus targeted additions to
+existing files) covering every endpoint branch, several genuine edge cases found while
+checking coverage (JUnit's empty-`<testsuites>` error path, coverage-only ingestion with no
+JUnit, `build_dependency_graph`'s `commit_sha` filter - unreachable from any current endpoint,
+so only unit-testable directly), and a real end-to-end pipeline test
+(`test_end_to_end.py`: create repo -> ingest 5 runs -> flakiness -> impact -> clustering, all
+through the public API only). Now at **98.6% branch coverage**, 109 tests.
+
+**Remaining gap, deliberately not chased** (documented per the roadmap's "defensible level,
+not a forced arbitrary number"): `app/database.py`'s `get_db()` (67%) is overridden by every
+test's DB fixture by design, and `app/analysis/summarize.py`'s actual Gemini API call (78%) is
+never exercised automatically since that would spend real money and depend on network/API
+state on every test run - both are Phase 5's already-established pattern (mock at the
+boundary), not new gaps.
+
+**Coverage config**: `.coveragerc` (branch coverage on, `source = app`) + `pytest.ini`
+(`--cov-fail-under=90`, so `pytest` alone now runs with coverage and fails the run if it drops
+below 90% - real headroom above the current 98.6%, not a number tuned to just barely pass).
 
 ### Phase 5 — Failure Clustering + LLM Summary (complete)
 

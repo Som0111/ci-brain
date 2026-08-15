@@ -79,3 +79,30 @@ def test_re_ingesting_same_tests_reuses_test_case_rows(client, repo_id):
 
     runs = client.get(f"/repos/{repo_id}/runs").json()
     assert len(runs) == 2
+
+
+def test_ingest_coverage_only_no_junit(client, repo_id):
+    coverage = b'{"files": {"a.py": {"contexts": {"1": ["a.py::test_x|run"]}}}}'
+    resp = client.post(
+        f"/repos/{repo_id}/runs",
+        files={"coverage_json": ("c.json", coverage, "application/json")},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["tests_recorded"] == 0  # no JUnit means no TestResult rows, coverage stored on the run alone
+    runs = client.get(f"/repos/{repo_id}/runs").json()
+    assert runs[0]["source"] == "coverage"
+
+
+def test_ingest_malformed_coverage_json_400s(client, repo_id):
+    resp = client.post(
+        f"/repos/{repo_id}/runs",
+        files={"coverage_json": ("c.json", b"not json at all", "application/json")},
+    )
+    assert resp.status_code == 400
+    assert "coverage_json" in resp.json()["detail"]
+
+
+def test_get_run_unknown_404s(client):
+    resp = client.get("/runs/999")
+    assert resp.status_code == 404

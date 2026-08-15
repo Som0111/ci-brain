@@ -152,3 +152,48 @@ class TestToPytestNodeId:
         original = "toolz/tests/test_dicttoolz.py::TestDict::test_merge"
         stored = normalize_test_id(original)
         assert to_pytest_nodeid(stored, "toolz/tests/test_dicttoolz.py") == original
+
+
+class TestNormalizeTestIdEdgeCases:
+    def test_bare_module_id_with_no_test_name(self):
+        from app.analysis.impact import normalize_test_id
+
+        # a coverage context that's just a file path with no ::testname
+        # (e.g. import-time execution outside any test) still normalizes cleanly
+        assert normalize_test_id("toolz/tests/test_utils.py") == "toolz.tests.test_utils"
+
+
+class TestBuildDependencyGraphCommitFilter:
+    def test_commit_sha_isolates_coverage_by_commit(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+
+        from app.analysis.impact import build_dependency_graph
+        from app.database import Base
+        from app.models import Repo, RunSource
+        from app.models import TestRun as TestRunModel
+
+        engine = create_engine(
+            "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        Base.metadata.create_all(bind=engine)
+        db = sessionmaker(bind=engine)()
+
+        repo = Repo(name="r", url=None)
+        db.add(repo)
+        db.commit()
+
+        cov_a = {"files": {"a.py": {"contexts": {"1": ["a.py::test_x|run"]}}}}
+        cov_b = {"files": {"b.py": {"contexts": {"1": ["b.py::test_y|run"]}}}}
+        db.add(TestRunModel(repo_id=repo.id, commit_sha="commit_a", source=RunSource.COVERAGE, coverage_data=cov_a))
+        db.add(TestRunModel(repo_id=repo.id, commit_sha="commit_b", source=RunSource.COVERAGE, coverage_data=cov_b))
+        db.commit()
+
+        graph_a = build_dependency_graph(db, repo.id, commit_sha="commit_a")
+        assert set(graph_a.keys()) == {"a.py"}
+
+        graph_all = build_dependency_graph(db, repo.id)
+        assert set(graph_all.keys()) == {"a.py", "b.py"}
+
+        db.close()

@@ -72,3 +72,10 @@ def test_file_path_strips_class_component():
     assert file_path_from_classname("pkg.mod.Outer.Inner") == "pkg/mod.py"
     # single bare module
     assert file_path_from_classname("test_thing") == "test_thing.py"
+
+
+def test_empty_testsuites_element_raises():
+    from app.parsers.junit import JUnitParseError, parse_junit_xml
+
+    with pytest.raises(JUnitParseError, match="no <testsuite>"):
+        parse_junit_xml(b"<testsuites></testsuites>")
