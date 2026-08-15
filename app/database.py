@@ -15,6 +15,14 @@ engine = create_engine(
     # have been idle/open longer than some server-side limit.
     pool_pre_ping=True,
     pool_recycle=280,
+    # Route handlers here are sync `def`s, which Starlette runs in a bounded
+    # threadpool. If the DB is unreachable and psycopg2's connect() has no
+    # timeout, it can hang far longer than any client will wait - each hung
+    # request then pins a threadpool worker indefinitely. Enough of those
+    # exhausts the pool and starves *every* route, including /health, which
+    # needs a free worker too even though it never touches the DB. A short,
+    # explicit connect_timeout makes a dead DB fail fast instead of hanging.
+    connect_args={"connect_timeout": 5},
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
