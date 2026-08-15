@@ -1,0 +1,115 @@
+{
+  "variant": "toolz",
+  "reps": 9,
+  "full_suite_median_s": 2.12,
+  "full_suite_min_s": 2.053,
+  "full_suite_max_s": 2.165,
+  "full_suite_stdev_s": 0.039,
+  "full_suite_runs": [
+    2.124,
+    2.053,
+    2.165,
+    2.12,
+    2.085,
+    2.073,
+    2.156,
+    2.12,
+    2.073
+  ],
+  "full_suite_overhead_s": 0.989,
+  "full_suite_exec_s": 1.131,
+  "scenarios": [
+    {
+      "changed_file": "toolz/dicttoolz.py",
+      "tests_selected": 52,
+      "tests_total": 186,
+      "test_count_reduction_pct": 72.0,
+      "subset_median_s": 1.221,
+      "subset_stdev_s": 0.15,
+      "subset_overhead_s": 1.117,
+      "subset_exec_s": 0.105,
+      "runtime_reduction_pct": 42.4,
+      "exec_time_reduction_pct": 90.7,
+      "subset_runs": [
+        1.281,
+        1.216,
+        1.221,
+        1.305,
+        1.211,
+        1.671,
+        1.207,
+        1.187,
+        1.258
+      ]
+    },
+    {
+      "changed_file": "toolz/itertoolz.py",
+      "tests_selected": 58,
+      "tests_total": 186,
+      "test_count_reduction_pct": 68.8,
+      "subset_median_s": 1.918,
+      "subset_stdev_s": 0.288,
+      "subset_overhead_s": 1.141,
+      "subset_exec_s": 0.777,
+      "runtime_reduction_pct": 9.5,
+      "exec_time_reduction_pct": 31.3,
+      "subset_runs": [
+        1.905,
+        1.923,
+        1.931,
+        1.918,
+        1.927,
+        2.778,
+        1.912,
+        1.912,
+        1.892
+      ]
+    },
+    {
+      "changed_file": "toolz/functoolz.py",
+      "tests_selected": 79,
+      "tests_total": 186,
+      "test_count_reduction_pct": 57.5,
+      "subset_median_s": 1.613,
+      "subset_stdev_s": 0.221,
+      "subset_overhead_s": 1.236,
+      "subset_exec_s": 0.378,
+      "runtime_reduction_pct": 23.9,
+      "exec_time_reduction_pct": 66.6,
+      "subset_runs": [
+        1.613,
+        1.595,
+        1.617,
+        1.637,
+        1.588,
+        2.261,
+        1.565,
+        1.565,
+        1.685
+      ]
+    },
+    {
+      "changed_file": "toolz/recipes.py",
+      "tests_selected": 2,
+      "tests_total": 186,
+      "test_count_reduction_pct": 98.9,
+      "subset_median_s": 0.886,
+      "subset_stdev_s": 0.108,
+      "subset_overhead_s": 0.874,
+      "subset_exec_s": 0.012,
+      "runtime_reduction_pct": 58.2,
+      "exec_time_reduction_pct": 99.0,
+      "subset_runs": [
+        0.876,
+        0.876,
+        0.857,
+        0.869,
+        0.886,
+        0.892,
+        1.155,
+        1.084,
+        0.888
+      ]
+    }
+  ]
+}
