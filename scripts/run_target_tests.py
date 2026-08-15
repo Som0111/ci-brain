@@ -1,0 +1,71 @@
+"""
+Run the target repo's (toolz) test suite once, capturing:
+  - JUnit XML (pass/fail/duration per test)
+  - coverage.py data with per-test contexts (which test executed which line)
+
+The contexts data is what Phase 4's dependency graph gets built from, so we
+export it explicitly via `coverage json --show-contexts` rather than relying
+on pytest-cov's default report.
+"""
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+TARGET_DIR = Path(__file__).resolve().parent.parent / "target_repos" / "toolz"
+
+
+def target_python():
+    venv_dir = TARGET_DIR / ".venv"
+    return venv_dir / "Scripts" / "python.exe" if sys.platform == "win32" else venv_dir / "bin" / "python"
+
+
+def run_once(out_dir: Path) -> int:
+    out_dir = out_dir.resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    py = target_python()
+
+    coverage_data_file = TARGET_DIR / ".coverage"
+    coverage_data_file.unlink(missing_ok=True)
+
+    # coverage.py's default "sysmon" tracer (Python 3.12+) doesn't fully support
+    # per-test dynamic contexts and raises a warning-as-error under toolz's
+    # filterwarnings=error config. The classic tracer handles contexts correctly.
+    env = {**os.environ, "COVERAGE_CORE": "ctrace"}
+
+    result = subprocess.run(
+        [
+            str(py), "-m", "pytest", "toolz/",
+            f"--junitxml={out_dir / 'junit.xml'}",
+            "-q",
+            "--cov=toolz",
+            "--cov-context=test",
+            "--cov-report=",
+        ],
+        cwd=TARGET_DIR,
+        env=env,
+    )
+
+    subprocess.run(
+        [str(py), "-m", "coverage", "json", "--show-contexts", "-o", str(out_dir / "coverage.json")],
+        cwd=TARGET_DIR,
+        env=env,
+        check=True,
+    )
+
+    print(f"\nRun artifacts written to {out_dir}")
+    print(f"  junit.xml    - {out_dir / 'junit.xml'}")
+    print(f"  coverage.json - {out_dir / 'coverage.json'}")
+    return result.returncode
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out-dir", default=str(Path(__file__).resolve().parent.parent / "replay_data" / "run"))
+    args = parser.parse_args()
+    run_once(Path(args.out_dir))
+
+
+if __name__ == "__main__":
+    main()

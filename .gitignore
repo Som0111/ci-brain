@@ -9,3 +9,5 @@ htmlcov/
 node_modules/
 dist/
 *.db
+target_repos/
+replay_data/
