@@ -203,6 +203,24 @@ Dashboard: `cd dashboard && npm run lint && npx tsc -b --noEmit && npm run build
 
 ## Known limitations / gotchas
 
+- **Database export tooling, and an unresolved Render free-tier flakiness pattern.**
+  `scripts/export_db.py` connects directly to Postgres (complete, includes `coverage_data`,
+  needs a DB URL with external network access) and `scripts/export_db_via_api.py` walks the
+  public API instead (no DB credentials needed, but never includes `coverage_data` - the API
+  doesn't expose it). A direct-DB export attempt against the live Render Postgres timed out at
+  the raw TCP level on port 5432 even with Render's Access Control set to `0.0.0.0/0` - `Test-
+  NetConnection` confirmed port 443 and DNS (53) work fine from the same machine, only 5432
+  doesn't, which points at a local/ISP network block on that specific port, not a Render-side
+  restriction. Falling back to the API export, `GET /repos/{id}/runs` (and then even individual
+  `GET /runs/{id}` lookups) started 502ing specifically for the repo with 20 runs while the
+  same request for the 5-run repo kept working - **reproduced as fine locally against the
+  identical data**, so this is a live-environment issue (most likely free-tier RAM/CPU limits
+  under sustained query load compounding with each retry), not an application bug. The
+  resulting export (`exports/ci_brain_render_export_*.json`) is honestly marked partial in its
+  own `warnings` field rather than silently missing data. Re-running the API export once the
+  deploy has had a quiet period should pick up the rest; if it keeps failing specifically on
+  larger responses, that's worth checking against Render's actual service logs/metrics (not
+  visible from here) before assuming it's fixed by more code changes.
 - **The Render deploy 502'd on every DB-touching endpoint after a sustained ingestion burst**
   (25 replay-harness requests back to back), while `/health` (no DB) kept returning 200 the
   whole time — a clean signature of a dead pooled connection, not the app itself being down.
