@@ -805,3 +805,19 @@ and final-verification sections above (those described the state before this run
 - `tests/test_migrations.py` with `TEST_POSTGRES_URL`: 8 passed (4 SQLite + 4 PostgreSQL, including the
   model-vs-migration drift check).
 - Still not run: the GitHub Actions workflows on GitHub itself; failing-migration and restart behaviour of the stack.
+
+## Dashboard hook tests (follow-up to P2-12/13)
+
+- Added **Vitest + jsdom + @testing-library/react** (devDependencies; chosen explicitly because the dashboard had only
+  Node's built-in runner, which cannot render a React hook). `npm test` now runs both: `node --test src/lib/*.test.ts`
+  (pure logic, 18 tests) then `vitest run` (React tests, `src/**/*.test.tsx`). Vitest is configured in `vite.config.ts`
+  to ignore the `.test.ts` files; both kinds of test file are excluded from the app's `tsc` build.
+- `src/lib/useApiData.test.tsx` (7 tests): success path; failure sets message + HTTP status and `reload()` retries
+  (shows loading, not the stale error); non-`ApiError` failure; new key triggers a fetch while a same-key re-render
+  does not; unmount aborts the in-flight signal and a late result causes no state update; fast key change - the older,
+  slower response cannot overwrite the newer; the previous key's data is never shown while the next key loads.
+- Checked that these tests can fail: three deliberate regressions to the hook (drop the key match, drop the
+  abort-on-cleanup, ignore key changes) each made 2-3 tests fail; the hook was restored byte-for-byte afterwards.
+- Lockfile: +4 direct devDependencies and their transitive packages; one existing transitive package (`picomatch`
+  4.0.5) was bumped by npm's resolver. `npm audit`: 0 vulnerabilities.
+- Supersedes the earlier statements that no React test tooling exists / the hook wiring is untested.
