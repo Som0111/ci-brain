@@ -11,6 +11,7 @@ Retries on transient failures since the live deploy has shown occasional
 """
 import argparse
 import json
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,7 +79,7 @@ def export(api_base: str) -> dict:
                 runs = get_with_retry(client, f"/repos/{repo_id}/runs", retries=2, delay=2.0)
                 run_details = [get_with_retry(client, f"/runs/{run['id']}") for run in runs]
             except RuntimeError:
-                print(f"  /repos/{repo_id}/runs failing - falling back to per-id enumeration")
+                print(f"  /repos/{repo_id}/runs failing - falling back to per-id enumeration", file=sys.stderr)
                 run_details = enumerate_runs_by_id(client, repo_id, max_id=200, max_misses=15)
 
             runs_out = [

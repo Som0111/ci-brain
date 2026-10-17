@@ -31,6 +31,8 @@ export interface FlakinessEntry {
 export interface FlakinessReport {
   repo_id: number;
   commit_sha: string | null;
+  commits_seen: number;
+  warning: string | null;
   total_tests: number;
   flaky: FlakinessEntry[];
   consistently_failing: FlakinessEntry[];

@@ -60,16 +60,14 @@ def test_impact_unknown_repo_404s(client):
     assert resp.status_code == 404
 
 
-def test_impact_no_changed_files_selects_nothing(client, repo_id):
+def test_impact_empty_changed_files_is_422(client, repo_id):
     _ingest(
         client, repo_id,
         cases=[("pkg.tests.test_a", "test_x")],
         coverage={"pkg/mod.py": "pkg/tests/test_a.py::test_x|run"},
     )
     resp = client.post(f"/repos/{repo_id}/impact", json={"changed_files": []})
-    body = resp.json()
-    assert body["selected_count"] == 0
-    assert body["full_suite_fallback"] is False
+    assert resp.status_code == 422
 
 
 def test_graph_summary_reflects_ingested_coverage(client, repo_id):

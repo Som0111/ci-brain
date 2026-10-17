@@ -5,12 +5,22 @@ on:
   push:
     branches: [master]
 
+# Read-only by default; no job here needs to write to the repo.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Python version is kept identical to the Dockerfile base image (python:3.14-slim).
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
@@ -22,5 +32,72 @@ jobs:
       - name: Lint (ruff)
         run: ruff check app/ tests/ scripts/
 
+      # pytest.ini enforces --cov-fail-under=90 (a floor; actual coverage is higher).
       - name: Test (with coverage)
         run: pytest
+
+  postgres-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ci_brain_test
+          POSTGRES_USER: ci_brain
+          POSTGRES_PASSWORD: ci_brain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_brain -d ci_brain_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg2://ci_brain:ci_brain@localhost:5432/ci_brain_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      # Same migration tests as the SQLite run, but against real PostgreSQL (enums, JSON, constraints).
+      # addopts is cleared so the repo-wide coverage floor doesn't apply to this single file.
+      - name: Migration tests on PostgreSQL
+        run: pytest tests/test_migrations.py -o addopts="" -v
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+
+  docker-compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the stack
+        run: docker compose up -d --build
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          echo "API did not become healthy" >&2
+          docker compose logs
+          exit 1
+      - name: Migrations ran
+        run: docker compose logs app | grep "migrations OK"
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

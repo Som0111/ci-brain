@@ -1,5 +1,7 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.orm import Session
 
 from app.analysis.impact import (
@@ -11,11 +13,14 @@ from app.analysis.impact import (
 from app.database import get_db
 from app.models import Repo
 
-router = APIRouter(tags=["impact"])
+router = APIRouter(tags=["impact"], responses={404: {"description": "Repo (or run) not found"}})
+
+
+ChangedPath = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 
 
 class ImpactRequest(BaseModel):
-    changed_files: list[str]
+    changed_files: list[ChangedPath] = Field(min_length=1, max_length=1000)
 
 
 class ImpactResponse(BaseModel):

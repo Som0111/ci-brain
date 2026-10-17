@@ -24,11 +24,18 @@ full suite rather than guess:
   executed it. Tempting to select zero tests - but a new or previously-dead
   file can still break every test that imports it (import-time errors, side
   effects), and coverage cannot see that. So: full suite.
+- **Coverage contexts we cannot map** (unparseable ids, or ids that match no
+  stored TestCase) would silently shrink the selection - the test they name
+  would never be run. Any such id in a selected set forces the full suite.
+- **No changed files / paths outside the repo** (absolute, ``../`` traversal)
+  carry no information, so they also fall back rather than select nothing.
 - **Changed test files** always run in full, including tests too new to appear
   in the coverage data at all.
 """
 import posixpath
+import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -47,11 +54,34 @@ ALWAYS_FULL_SUITE = {
 ALWAYS_FULL_SUITE_SUFFIXES = ("requirements.txt",)
 
 
+# Marks a coverage context we could not translate to a stored test id. It never
+# matches a TestCase, so `select_tests` sees an unknown id and runs everything.
+UNMAPPED_CONTEXT = "<unmapped-context>"
+
+# Third-party / generated trees: coverage edges into these say nothing about repo code.
+_VENDOR_PARTS = {"site-packages", "dist-packages", "node_modules", ".venv", "venv", ".tox", "__pycache__"}
+_DRIVE_RE = re.compile(r"^[A-Za-z]:")
+
+
 def normalize_path(path: str) -> str:
-    """coverage.py emits OS-native separators; git diff always emits POSIX ones."""
-    return path.replace("\\", "/")
+    """coverage.py emits OS-native separators; git diff always emits POSIX ones.
+
+    Also collapses ``./``, ``//`` and ``a/../b``. Leading ``../`` and absolute
+    paths are preserved so `in_repo_path` can reject them.
+    """
+    path = path.strip().replace("\\", "/")
+    return posixpath.normpath(path) if path else path
 
 
+def in_repo_path(norm: str) -> bool:
+    """True for a repo-relative path that stays inside the repo and isn't vendored."""
+    if not norm or norm.startswith("/") or _DRIVE_RE.match(norm) or norm == "." or "\x00" in norm:
+        return False
+    parts = norm.split("/")
+    return ".." not in parts and not (_VENDOR_PARTS & set(parts))
+
+
+@lru_cache(maxsize=200_000)  # pure function; the same contexts repeat across lines, files and runs
 def normalize_test_id(context: str) -> str:
     """Convert a coverage context id to the same form the ingestion API stores.
 
@@ -62,7 +92,7 @@ def normalize_test_id(context: str) -> str:
     dotted form with the class folded in. Without this the graph's test ids
     would never join against the TestCase rows.
     """
-    context = normalize_path(context).split("|", 1)[0]  # drop pytest-cov's |setup/|run/|teardown
+    context = context.replace("\\", "/").split("|", 1)[0]  # drop pytest-cov's |setup/|run/|teardown
     parts = context.split("::")
     module = parts[0].removesuffix(".py").replace("/", ".")
     rest = parts[1:]
@@ -98,6 +128,17 @@ def forces_full_suite(path: str) -> bool:
     return base in ALWAYS_FULL_SUITE or norm.endswith(ALWAYS_FULL_SUITE_SUFFIXES)
 
 
+@lru_cache(maxsize=200_000)
+def _map_context(ctx: str) -> str:
+    return normalize_test_id(ctx) if _parseable_context(ctx) else UNMAPPED_CONTEXT
+
+
+def _parseable_context(ctx: str) -> bool:
+    """A pytest context looks like ``path/to/test_x.py::[Class::]test_name[|phase]``."""
+    parts = ctx.replace("\\", "/").split("|", 1)[0].split("::")
+    return len(parts) >= 2 and all(parts) and parts[0].endswith(".py")
+
+
 def build_file_test_map(coverage_data: dict) -> dict[str, set[str]]:
     """One run's coverage JSON -> {source file: tests that executed a line in it}."""
     file_test_map: dict[str, set[str]] = {}
@@ -108,9 +149,10 @@ def build_file_test_map(coverage_data: dict) -> dict[str, set[str]]:
             for ctx in contexts:
                 if not ctx:
                     continue  # empty context = collection-time execution, not a real test
-                tests.add(normalize_test_id(ctx))
-        if tests:
-            file_test_map[normalize_path(file_path)] = tests
+                tests.add(_map_context(ctx))
+        norm = normalize_path(file_path)
+        if tests and in_repo_path(norm):
+            file_test_map[norm] = tests
 
     return file_test_map
 
@@ -122,15 +164,17 @@ def build_dependency_graph(db: Session, repo_id: int, commit_sha: str | None = N
     early-exiting run can miss edges; a test that touched a file in *any*
     observed run is a real dependency.
     """
-    query = select(TestRun).where(TestRun.repo_id == repo_id)
+    # Select just the (deferred, possibly huge) JSON column and stream it a few rows at a time, so memory
+    # holds one run's coverage rather than all of them.
+    query = select(TestRun.coverage_data).where(TestRun.repo_id == repo_id)
     if commit_sha is not None:
         query = query.where(TestRun.commit_sha == commit_sha)
 
     graph: dict[str, set[str]] = {}
-    for run in db.scalars(query).all():
-        if not run.coverage_data:
+    for coverage_data in db.scalars(query.execution_options(yield_per=5)):
+        if not coverage_data:
             continue
-        for file_path, tests in build_file_test_map(run.coverage_data).items():
+        for file_path, tests in build_file_test_map(coverage_data).items():
             graph.setdefault(file_path, set()).update(tests)
     return graph
 
@@ -138,7 +182,7 @@ def build_dependency_graph(db: Session, repo_id: int, commit_sha: str | None = N
 def get_all_tests(db: Session, repo_id: int) -> set[str]:
     from app.models import TestCase
 
-    return {tc.node_id for tc in db.scalars(select(TestCase).where(TestCase.repo_id == repo_id)).all()}
+    return set(db.scalars(select(TestCase.node_id).where(TestCase.repo_id == repo_id)).all())
 
 
 def get_tests_by_file(db: Session, repo_id: int) -> dict[str, set[str]]:
@@ -151,8 +195,9 @@ def get_tests_by_file(db: Session, repo_id: int) -> dict[str, set[str]]:
     from app.models import TestCase
 
     by_file: dict[str, set[str]] = {}
-    for tc in db.scalars(select(TestCase).where(TestCase.repo_id == repo_id)).all():
-        by_file.setdefault(normalize_path(tc.file_path), set()).add(tc.node_id)
+    rows = db.execute(select(TestCase.file_path, TestCase.node_id).where(TestCase.repo_id == repo_id))
+    for file_path, node_id in rows:
+        by_file.setdefault(normalize_path(file_path), set()).add(node_id)
     return by_file
 
 
@@ -184,11 +229,18 @@ def select_tests(
     tests_by_file = tests_by_file or {}
 
     if not changed_files:
-        result.reasons.append("no files changed")
-        return result
+        # Selecting nothing would read as "safe to run nothing" - never infer that from no input.
+        result.full_suite_fallback = True
+        result.reasons.append("no changed files given, cannot determine impact")
 
     for path in changed_files:
         norm = normalize_path(path)
+
+        if not in_repo_path(norm):
+            result.unknown_files.append(norm)
+            result.full_suite_fallback = True
+            result.reasons.append(f"{norm}: outside repo / vendored / absolute path, impact unknown")
+            continue
 
         if forces_full_suite(norm):
             result.full_suite_fallback = True
@@ -208,6 +260,9 @@ def select_tests(
 
         if norm in graph:
             hit = graph[norm]
+            if not hit <= all_tests:
+                result.full_suite_fallback = True
+                result.reasons.append(f"{norm}: coverage names tests with no stored match, mapping unreliable")
             result.selected |= hit
             result.reasons.append(f"{norm}: {len(hit)} test(s) cover this file")
         else:

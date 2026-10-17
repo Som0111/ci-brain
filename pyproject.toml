@@ -1,5 +1,7 @@
 [tool.ruff]
 line-length = 120
+# local scratch script (also git-ignored); not part of the project, so not linted
+extend-exclude = ["scripts/_gen_evalforge_raw.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

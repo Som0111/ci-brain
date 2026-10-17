@@ -14,6 +14,7 @@ understand its internals.
 """
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
 from app.analysis.impact import (
@@ -32,6 +33,8 @@ SCENARIOS = [
     ("toolz/dicttoolz.py", "\n\ndef merge(*dicts, **kwargs):  # INJECTED BREAKAGE\n    return {}\n"),
     ("toolz/itertoolz.py", "\n\ndef groupby(key, seq):  # INJECTED BREAKAGE\n    return {}\n"),
     ("toolz/functoolz.py", "\n\ndef identity(x):  # INJECTED BREAKAGE\n    return None\n"),
+    # added so every benchmarked file (scripts/benchmark_impact.py SCENARIOS) is also failure-injected
+    ("toolz/recipes.py", "\n\ndef countby(key, seq):  # INJECTED BREAKAGE\n    return {}\n"),
 ]
 
 
@@ -84,7 +87,10 @@ def main():
         for m in sorted(missed)[:10]:
             print(f"      MISS {m}")
 
-    print("\nRESULT:", "all scenarios safe" if all_ok else "UNSAFE - selection dropped real failures")
+    if all_ok:
+        print("\nRESULT: all scenarios safe")
+    else:
+        print("\nRESULT: UNSAFE - selection dropped real failures", file=sys.stderr)
     return 0 if all_ok else 1
 
 

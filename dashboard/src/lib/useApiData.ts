@@ -1,37 +1,40 @@
 import { useEffect, useState } from "react";
+import { startFetch, type Settled } from "./startFetch";
 
-export function useApiData<T>(fetcher: () => Promise<T>, deps: unknown[]): {
+/** Everything the fetcher depends on, spelled out. Primitives only, so the key is stable and comparable. */
+export type QueryKey = readonly (string | number | boolean | null)[];
+
+/**
+ * Fetches when `queryKey` changes. The fetcher receives an AbortSignal: the in-flight request is aborted when the
+ * key changes or the component unmounts. Results are tagged with the key they were fetched for, so data from a
+ * previous selection (e.g. the previously selected repo) is never returned while a new fetch is in flight.
+ *
+ * Contract: the fetcher may only depend on values listed in `queryKey` (it is not re-created into the effect).
+ */
+export function useApiData<T>(
+  fetcher: (signal: AbortSignal) => Promise<T>,
+  queryKey: QueryKey,
+): {
   data: T | null;
   loading: boolean;
   error: string | null;
+  errorStatus: number | null;
+  reload: () => void;
 } {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const key = JSON.stringify(queryKey);
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<Settled<T> | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetcher()
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // `fetcher` is intentionally excluded from deps: callers pass a fresh
-    // closure each render, and re-running on that would defeat the point of
-    // `deps`, which callers set explicitly to the values that should
-    // actually trigger a refetch. (react-hooks/exhaustive-deps disabled
-    // project-wide in .oxlintrc.json - see DEVELOPER_GUIDE.md for why.)
-  }, deps);
+  // The fetcher is deliberately not a dependency (callers pass a fresh closure every render); `key` is.
+  // (react-hooks/exhaustive-deps is disabled project-wide in .oxlintrc.json - see DEVELOPER_GUIDE.md.)
+  useEffect(() => startFetch(fetcher, key, attempt, setState), [key, attempt]);
 
-  return { data, loading, error };
+  const current = state && state.key === key && state.attempt === attempt ? state : null;
+  return {
+    data: current?.data ?? null,
+    loading: current === null,
+    error: current?.error?.message ?? null,
+    errorStatus: current?.error?.status ?? null,
+    reload: () => setAttempt((a) => a + 1),
+  };
 }

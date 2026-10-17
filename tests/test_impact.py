@@ -72,10 +72,10 @@ class TestSelection:
         r = select_tests(["toolz/dicttoolz.py", "toolz/itertoolz.py"], GRAPH, ALL_TESTS, TESTS_BY_FILE)
         assert r.selected == GRAPH["toolz/dicttoolz.py"] | GRAPH["toolz/itertoolz.py"]
 
-    def test_no_changes_selects_nothing(self):
+    def test_no_changes_falls_back_to_full_suite(self):
         r = select_tests([], GRAPH, ALL_TESTS, TESTS_BY_FILE)
-        assert r.selected == set()
-        assert r.full_suite_fallback is False
+        assert r.selected == ALL_TESTS
+        assert r.full_suite_fallback is True
 
     def test_changed_test_file_runs_its_own_tests(self):
         r = select_tests(["toolz/tests/test_utils.py"], GRAPH, ALL_TESTS, TESTS_BY_FILE)

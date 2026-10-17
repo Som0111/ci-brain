@@ -1,8 +1,11 @@
 """Parses pytest JUnit XML into plain records the ingestion endpoint can store."""
 
+import math
 from dataclasses import dataclass
 
 from lxml import etree
+
+MAX_MESSAGE_CHARS = 20_000  # stored failure text is capped; tracebacks beyond this add no clustering signal
 
 
 class JUnitParseError(ValueError):
@@ -40,7 +43,7 @@ class ParsedTestResult:
 
 def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
     try:
-        root = etree.fromstring(raw)
+        root = etree.fromstring(raw, etree.XMLParser(resolve_entities=False, no_network=True))
     except etree.XMLSyntaxError as exc:
         raise JUnitParseError(f"not valid XML: {exc}") from exc
 
@@ -55,6 +58,7 @@ def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
         raise JUnitParseError("no <testsuite> elements found under <testsuites>")
 
     results: list[ParsedTestResult] = []
+    seen: set[str] = set()
     for tc in testcases:
         name = tc.get("name")
         classname = tc.get("classname")
@@ -62,6 +66,9 @@ def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
             raise JUnitParseError(f"<testcase> missing required name/classname attribute: {etree.tostring(tc)!r}")
 
         node_id = f"{classname}::{name}"
+        if node_id in seen:
+            raise JUnitParseError(f"duplicate testcase {node_id}")
+        seen.add(node_id)
         file_path = tc.get("file") or file_path_from_classname(classname)
 
         duration_raw = tc.get("time")
@@ -69,6 +76,8 @@ def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
             duration = float(duration_raw) if duration_raw is not None else None
         except ValueError as exc:
             raise JUnitParseError(f"non-numeric time={duration_raw!r} on testcase {node_id}") from exc
+        if duration is not None and (not math.isfinite(duration) or duration < 0):
+            raise JUnitParseError(f"invalid time={duration_raw!r} on testcase {node_id}")
 
         failure = tc.find("failure")
         error = tc.find("error")
@@ -86,6 +95,9 @@ def parse_junit_xml(raw: bytes) -> list[ParsedTestResult]:
         else:
             status = "passed"
             message = None
+
+        if message and len(message) > MAX_MESSAGE_CHARS:
+            message = message[:MAX_MESSAGE_CHARS] + "... [truncated]"
 
         results.append(
             ParsedTestResult(

@@ -11,3 +11,17 @@ dist/
 *.db
 target_repos/
 replay_data/
+
+# logs, tool caches, local config variants
+*.log
+logs/
+.ruff_cache/
+.env.*
+!.env.example
+.claude/
+coverage.xml
+.coverage.*
+
+# local scratch (not part of the project)
+raw_evalforge_export.jsonl
+scripts/_gen_evalforge_raw.py

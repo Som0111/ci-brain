@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../lib/api";
+import { formatDuration, formatPct } from "../lib/format";
 import { useApiData } from "../lib/useApiData";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
 import type { BenchmarkScenario } from "../lib/types";
@@ -40,11 +41,13 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export function Benchmark() {
-  const { data: results, loading, error } = useApiData(() => api.getBenchmark(), []);
+  const { data: results, loading, error, errorStatus, reload } = useApiData((signal) => api.getBenchmark(signal), []);
 
   if (loading) return <LoadingState label="Loading benchmark results" />;
-  if (error) return <ErrorState message={error} />;
-  if (!results) return <EmptyState message="No benchmark results recorded." />;
+  if (error) return <ErrorState message={error} status={errorStatus} onRetry={reload} />;
+  if (!results || results.scenarios.length === 0) {
+    return <EmptyState message="No benchmark results are recorded on the server." />;
+  }
 
   const chartData = results.scenarios.map((s: BenchmarkScenario) => ({
     scenario: shortName(s.changed_file),
@@ -65,7 +68,7 @@ export function Benchmark() {
 
       <div className="stat-row">
         <div className="stat-tile">
-          <span className="stat-tile__value">{results.full_suite_median_s.toFixed(2)}s</span>
+          <span className="stat-tile__value">{formatDuration(results.full_suite_median_s)}</span>
           <span className="stat-tile__label">Full suite runtime</span>
         </div>
         <div className="stat-tile">
@@ -76,7 +79,11 @@ export function Benchmark() {
         </div>
       </div>
 
-      <div className="viz-root chart-card">
+      <div
+        className="viz-root chart-card"
+        role="img"
+        aria-label={`Grouped bar chart of test-count, wall-clock and execution-time reduction for ${results.scenarios.length} changed-file scenarios. The same values are in the table below.`}
+      >
         <ResponsiveContainer width="100%" height={340}>
           <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 8 }} barGap={2} barCategoryGap="20%">
             <CartesianGrid vertical={false} stroke="var(--gridline)" />
@@ -106,11 +113,11 @@ export function Benchmark() {
         <table>
           <thead>
             <tr>
-              <th>Changed file</th>
-              <th>Tests selected</th>
-              <th>Test-count cut</th>
-              <th>Wall-clock cut</th>
-              <th>Execution-time cut</th>
+              <th scope="col">Changed file</th>
+              <th scope="col">Tests selected</th>
+              <th scope="col">Test-count cut</th>
+              <th scope="col">Wall-clock cut</th>
+              <th scope="col">Execution-time cut</th>
             </tr>
           </thead>
           <tbody>
@@ -120,9 +127,9 @@ export function Benchmark() {
                 <td className="mono">
                   {s.tests_selected}/{s.tests_total}
                 </td>
-                <td className="mono">{s.test_count_reduction_pct.toFixed(1)}%</td>
-                <td className="mono">{s.runtime_reduction_pct.toFixed(1)}%</td>
-                <td className="mono">{s.exec_time_reduction_pct.toFixed(1)}%</td>
+                <td className="mono">{formatPct(s.test_count_reduction_pct)}</td>
+                <td className="mono">{formatPct(s.runtime_reduction_pct)}</td>
+                <td className="mono">{formatPct(s.exec_time_reduction_pct)}</td>
               </tr>
             ))}
           </tbody>

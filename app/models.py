@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -55,18 +55,26 @@ class TestRun(Base):
     """One execution of the target repo's test suite (one replay-harness pass)."""
 
     __tablename__ = "test_runs"
+    __table_args__ = (
+        UniqueConstraint("repo_id", "run_key", name="uq_test_run_repo_run_key"),
+        # flakiness / dependency-graph queries filter on (repo_id, commit_sha)
+        Index("ix_test_runs_repo_commit", "repo_id", "commit_sha"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     repo_id: Mapped[int] = mapped_column(ForeignKey("repos.id"), index=True)
     commit_sha: Mapped[str | None] = mapped_column(String(40), nullable=True)
     branch: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Optional client-supplied idempotency key; NULLs never collide, so keyless uploads are never deduplicated.
+    run_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     source: Mapped[RunSource] = mapped_column(
         Enum(RunSource, name="run_source", values_callable=lambda e: [m.value for m in e])
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Raw coverage.py JSON (file -> executed lines / summary) for this run, when supplied.
-    coverage_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # deferred: can be megabytes per run; only the dependency-graph builder reads it (selecting the column directly)
+    coverage_data: Mapped[dict | None] = mapped_column(JSON, nullable=True, deferred=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     repo: Mapped["Repo"] = relationship(back_populates="runs")
@@ -77,6 +85,9 @@ class TestResult(Base):
     """The outcome of one test case within one test run."""
 
     __tablename__ = "test_results"
+    __table_args__ = (
+        CheckConstraint("duration_seconds IS NULL OR duration_seconds >= 0", name="ck_test_results_duration_nonneg"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     test_run_id: Mapped[int] = mapped_column(ForeignKey("test_runs.id"), index=True)

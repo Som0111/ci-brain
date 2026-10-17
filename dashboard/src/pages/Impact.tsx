@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
+import { formatCount, formatPct } from "../lib/format";
 import { useApiData } from "../lib/useApiData";
 import { useRepos } from "../lib/useRepos";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
@@ -8,17 +9,20 @@ import type { ImpactResponse } from "../lib/types";
 
 const EXAMPLE_FILES = ["toolz/dicttoolz.py", "toolz/itertoolz.py", "toolz/functoolz.py", "toolz/recipes.py"];
 
-export function Impact() {
+// Remounted per repo (see Impact below), so a typed query, result or error from the previous repo never lingers.
+function ImpactBody() {
   const { selectedRepoId } = useRepos();
-  const { data: graph, loading, error } = useApiData(
-    () => (selectedRepoId ? api.getImpactGraph(selectedRepoId) : Promise.resolve(null)),
+  const { data: graph, loading, error, errorStatus, reload } = useApiData(
+    (signal) => (selectedRepoId ? api.getImpactGraph(selectedRepoId, signal) : Promise.resolve(null)),
     [selectedRepoId],
   );
 
   const [filesInput, setFilesInput] = useState(EXAMPLE_FILES[0]);
   const [result, setResult] = useState<ImpactResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const inFlight = useRef<AbortController | null>(null);
+  useEffect(() => () => inFlight.current?.abort(), []);
+  const [submitError, setSubmitError] = useState<{ message: string; status: number | null } | null>(null);
 
   async function runAnalysis(files: string) {
     if (!selectedRepoId) return;
@@ -28,20 +32,27 @@ export function Impact() {
       .filter(Boolean);
     if (changedFiles.length === 0) return;
 
+    inFlight.current?.abort(); // a newer submit supersedes an older one
+    const ctrl = new AbortController();
+    inFlight.current = ctrl;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const res = await api.analyzeImpact(selectedRepoId, changedFiles);
-      setResult(res);
+      const res = await api.analyzeImpact(selectedRepoId, changedFiles, ctrl.signal);
+      if (!ctrl.signal.aborted) setResult(res);
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : String(e));
+      if (ctrl.signal.aborted) return;
+      setSubmitError({
+        message: e instanceof Error ? e.message : String(e),
+        status: e instanceof ApiError ? e.status : null,
+      });
     } finally {
-      setSubmitting(false);
+      if (inFlight.current === ctrl) setSubmitting(false);
     }
   }
 
   if (loading) return <LoadingState label="Loading dependency graph" />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} status={errorStatus} onRetry={reload} />;
 
   return (
     <section>
@@ -93,19 +104,19 @@ export function Impact() {
             </button>
           </form>
 
-          {submitError && <ErrorState message={submitError} />}
+          {submitError && <ErrorState message={submitError.message} status={submitError.status} />}
 
           {result && (
             <div className="impact-result">
               <div className="stat-row">
                 <div className="stat-tile stat-tile--highlight">
                   <span className="stat-tile__value">
-                    {result.selected_count}/{result.total_tests}
+                    {formatCount(result.selected_count)}/{formatCount(result.total_tests)}
                   </span>
                   <span className="stat-tile__label">Tests selected</span>
                 </div>
                 <div className="stat-tile stat-tile--highlight">
-                  <span className="stat-tile__value">{result.reduction_pct.toFixed(1)}%</span>
+                  <span className="stat-tile__value">{formatPct(result.reduction_pct)}</span>
                   <span className="stat-tile__label">Reduction</span>
                 </div>
                 <div className="stat-tile">
@@ -144,4 +155,9 @@ export function Impact() {
       )}
     </section>
   );
+}
+
+export function Impact() {
+  const { selectedRepoId } = useRepos();
+  return <ImpactBody key={selectedRepoId} />;
 }

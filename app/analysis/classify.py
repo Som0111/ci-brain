@@ -8,6 +8,16 @@ Threshold design rationale (Phase 3 decision):
   outcome was seen), which is what actually measures evidence strength at
   small sample sizes: 1 flip could be a fluke, 3+ flips cannot reasonably be.
 - Below MIN_RUNS non-skip runs we refuse to classify rather than guess.
+
+What the labels mean (they are heuristics, not calibrated probabilities - no
+significance test or p-value is computed):
+- HIGH / MEDIUM / LOW = the rarer outcome was seen >=3 / exactly 2 / exactly 1
+  times among the non-skipped runs. It says how much evidence there is that
+  both outcomes really occur, not how likely a given run is to fail.
+- `quarantine` = FLAKY with HIGH or MEDIUM confidence.
+- Skipped results never count as a pass or a fail; 'error' counts as a fail.
+- Inputs are only trustworthy when all runs share one commit (see the API's
+  `commit_sha` filter / `warning`) and are not duplicate uploads (`run_key`).
 """
 import enum
 from dataclasses import dataclass

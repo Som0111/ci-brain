@@ -10,6 +10,7 @@ their noisy/failing runs never mix into the clean "toolz" baseline that
 Phase 4's dependency graph is built from.
 """
 import argparse
+import os
 from pathlib import Path
 
 import httpx
@@ -56,7 +57,9 @@ def main():
     parser.add_argument("--out-prefix", default="run", help="replay_data/<prefix>_N output dir prefix")
     args = parser.parse_args()
 
-    with httpx.Client(base_url=args.api_base, timeout=30.0) as client:
+    with httpx.Client(
+        base_url=args.api_base, timeout=30.0, headers={"X-API-Key": os.environ.get("CI_BRAIN_API_KEY", "")}
+    ) as client:
         repo_id = ensure_repo(client, args.repo_name)
         print(f"repo_id={repo_id} ({args.repo_name}), variant={args.variant}")
 

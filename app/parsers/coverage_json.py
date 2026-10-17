@@ -8,10 +8,14 @@ class CoverageParseError(ValueError):
     pass
 
 
+def _reject_constant(name: str):
+    raise ValueError(f"non-finite number {name} not allowed")
+
+
 def parse_coverage_json(raw: bytes) -> dict:
     try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
+        data = json.loads(raw, parse_constant=_reject_constant)
+    except ValueError as exc:
         raise CoverageParseError(f"not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):

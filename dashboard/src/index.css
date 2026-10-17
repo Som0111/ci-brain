@@ -439,3 +439,49 @@ tbody tr:hover td {
 .test-list__item:last-child {
   border-bottom: none;
 }
+
+/* --- states, wrapping, narrow screens --- */
+.state--warning {
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface-1));
+  color: var(--text-primary);
+  margin: 1rem 0;
+}
+
+.state__retry {
+  margin-top: 0.6rem;
+}
+
+td.wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 14rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .topbar,
+  .topbar__nav,
+  .stat-row {
+    flex-wrap: wrap;
+  }
+
+  .topbar {
+    gap: 0.5rem;
+  }
+}

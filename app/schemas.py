@@ -1,13 +1,19 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 from app.models import RunSource, TestStatus
 
 
 class RepoCreate(BaseModel):
-    name: str
-    url: str | None = None
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+    url: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+
+    @field_validator("url")
+    @classmethod
+    def _blank_url_is_none(cls, v):
+        return v or None
 
 
 class RepoOut(BaseModel):
@@ -56,6 +62,7 @@ class TestRunDetailOut(TestRunOut):
 
 class IngestResult(BaseModel):
     run_id: int
+    duplicate: bool = False  # True when run_key matched an already-ingested run (nothing new stored)
     tests_recorded: int
     passed: int
     failed: int

@@ -19,3 +19,8 @@ docs/
 seeds/
 scripts/
 .claude/
+
+dashboard/
+exports/
+*.log
+.ruff_cache/

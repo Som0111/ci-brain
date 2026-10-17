@@ -85,6 +85,8 @@ def test_no_runs_gives_empty_report(client, repo_id):
     assert body == {
         "repo_id": repo_id,
         "commit_sha": None,
+        "commits_seen": 0,
+        "warning": None,
         "total_tests": 0,
         "flaky": [],
         "consistently_failing": [],

@@ -1,9 +1,11 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useRepos } from "../lib/useRepos";
-import { ErrorState, LoadingState } from "./States";
+import { EmptyState, ErrorState, LoadingState } from "./States";
 
 export function Layout() {
-  const { repos, selectedRepoId, setSelectedRepoId, loading, error } = useRepos();
+  const { repos, selectedRepoId, setSelectedRepoId, loading, error, errorStatus, reload } = useRepos();
+  const { pathname } = useLocation();
+  const needsRepo = pathname !== "/benchmark"; // the benchmark page is repo-independent
 
   return (
     <div className="app-shell">
@@ -36,7 +38,7 @@ export function Layout() {
 
         <div className="topbar__repo">
           {loading && <LoadingState label="Loading repos" />}
-          {error && <span className="text-muted">API unreachable</span>}
+          {error && <span className="text-muted">Repository list unavailable</span>}
           {!loading && !error && repos.length > 0 && (
             <select
               value={selectedRepoId ?? ""}
@@ -53,15 +55,15 @@ export function Layout() {
         </div>
       </header>
 
-      {error ? (
-        <main className="page">
-          <ErrorState message={`Couldn't reach the API at load time: ${error}. Is the backend running?`} />
-        </main>
-      ) : (
-        <main className="page">
+      <main className="page">
+        {needsRepo && error ? (
+          <ErrorState message={error} status={errorStatus} onRetry={reload} />
+        ) : needsRepo && !loading && repos.length === 0 ? (
+          <EmptyState message="No repositories exist on the API yet. Create one and ingest a run to see data here." />
+        ) : (
           <Outlet />
-        </main>
-      )}
+        )}
+      </main>
     </div>
   );
 }

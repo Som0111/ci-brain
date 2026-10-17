@@ -13,6 +13,8 @@ Opens at `http://localhost:5173`, pointing at `http://localhost:8000` by default
 a different API (e.g. the deployed Render instance), copy `.env.example` to `.env.local` and
 set `VITE_API_BASE`.
 
+**Deployment status:** only the API is deployed (Render, `https://ci-brain.onrender.com`). This dashboard is run locally; there is no hosted dashboard and no hosting config in this repo. If you host it, `VITE_API_BASE` is read at **build** time (Vite inlines it), so set it in the host's build environment, not at runtime. A trailing slash is fine.
+
 The backend must have CORS enabled (it does — see `app/main.py`) and at least one repo with
 ingested run data, or the dashboard will just show empty states.
 

@@ -32,9 +32,12 @@ before quoting it anywhere:
 """
 import argparse
 import json
+import os
+import platform
 import statistics
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select as sa_select
@@ -48,7 +51,7 @@ from app.analysis.impact import (
 )
 from app.database import SessionLocal
 from app.models import TestCase
-from scripts.clone_target import target_dir
+from scripts.clone_target import TARGET_COMMIT, target_dir
 from scripts.run_target_tests import target_python
 
 SCENARIOS = ["toolz/dicttoolz.py", "toolz/itertoolz.py", "toolz/functoolz.py", "toolz/recipes.py"]
@@ -163,6 +166,15 @@ def main():
         "full_suite_overhead_s": round(full_overhead["median"], 3),
         "full_suite_exec_s": round(full_exec, 3),
         "scenarios": results,
+        # needed to interpret wall-clock numbers; absent from results produced before this was added
+        "environment": {
+            "measured_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "target_commit": TARGET_COMMIT,
+            "os": platform.platform(),
+            "machine": platform.machine(),
+            "cpu_count": os.cpu_count(),
+            "runner_python": platform.python_version(),
+        },
     }
 
     out = Path(args.out)

@@ -84,12 +84,13 @@ class FailureCluster:
 
 def fetch_failures(db, repo_id: int, run_id: int | None = None) -> list[FailureRecord]:
     """Failed/errored TestResults for a repo, optionally scoped to one run."""
-    from sqlalchemy import select
+    from sqlalchemy import func, select
 
     from app.models import TestCase, TestResult, TestStatus
 
     query = (
-        select(TestCase.node_id, TestCase.file_path, TestResult.message)
+        # substr bounds memory for rows stored before ingestion capped message length
+        select(TestCase.node_id, TestCase.file_path, func.substr(TestResult.message, 1, 20_000))
         .join(TestResult, TestResult.test_case_id == TestCase.id)
         .where(TestCase.repo_id == repo_id, TestResult.status.in_([TestStatus.FAILED, TestStatus.ERROR]))
     )
