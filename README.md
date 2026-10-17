@@ -1,5 +1,6 @@
 # Continuous Integration (CI) Brain
 
+**Live dashboard: [https://ci-brain-dashboard.onrender.com](https://ci-brain-dashboard.onrender.com)**  
 **Live API: [https://ci-brain.onrender.com](https://ci-brain.onrender.com)**
 
 You can check that the API is running by opening [`/health`](https://ci-brain.onrender.com/health), which should return `{"status":"ok"}`. Since it's hosted on Render's free tier, it may go to sleep after 15 minutes of inactivity, so the first request after that can take around 50 seconds.
@@ -45,6 +46,25 @@ Architecture notes and how to run everything: [`DEVELOPER_GUIDE.md`](DEVELOPER_G
 FastAPI · PostgreSQL + SQLAlchemy + Alembic · pytest (98%+ branch coverage) · React + TypeScript
 + Vite · Google Gemini for the failure summaries · Docker + GitHub Actions · deployed on Render.
 
+## Deployment
+
+Both services are live on Render:
+
+| Service | URL |
+|---|---|
+| Dashboard | https://ci-brain-dashboard.onrender.com |
+| API | https://ci-brain.onrender.com (health check: `/health`, interactive docs: `/docs`) |
+
+- **API:** built from the `Dockerfile` and deployed by Render's GitHub integration. Database migrations
+  (`alembic upgrade head`) run automatically when the container starts, and the server only starts if they succeed.
+  The GitHub Actions workflow validates the build; it does not do the deploy itself.
+- **Dashboard:** built with Vite. The API address is a build-time setting, `VITE_API_BASE`, which is set to
+  `https://ci-brain.onrender.com` for the deployed build (see `dashboard/.env.example`).
+- Configuration (database URL, optional API key, CORS origins, Gemini key, log level) is read from environment
+  variables; `.env.example` lists all of them.
+- On Render's free tier the API may sleep after 15 minutes of inactivity, so the first request after that can take
+  around 50 seconds.
+
 ## Running it
 
 ```
@@ -76,5 +96,5 @@ scripts/        Replay harness, benchmark runner, safety verification, seed appl
 seeds/          The synthetic flaky tests + bugs I seeded, tracked in git
 dashboard/      React + TypeScript dashboard
 docs/           Benchmark writeup and build notes
-tests/          110 tests, 98%+ branch coverage
+tests/          295 tests, 98%+ branch coverage
 ```
